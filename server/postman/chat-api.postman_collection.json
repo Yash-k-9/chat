@@ -1,0 +1,279 @@
+{
+  "info": {
+    "name": "Private Chat API — Phase 1",
+    "description": "Auth flow tests. Set the collection variable `inviteCode` (from `npm run invite`), then run the collection top to bottom with the Collection Runner. The refresh-token cookie is handled by Postman's cookie jar automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "inviteCode", "value": "PASTE_INVITE_CODE_HERE" },
+    { "key": "username", "value": "" },
+    { "key": "password", "value": "correct-horse-battery" },
+    { "key": "accessToken", "value": "" },
+    { "key": "isAdmin", "value": "false" }
+  ],
+  "item": [
+    {
+      "name": "01 Health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('database ok', () => pm.expect(pm.response.json().database).to.eql('ok'));"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "02 Register",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Fresh username on every run so the collection can be re-run.",
+              "pm.collectionVariables.set('username', 'user_' + Date.now().toString(36));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('returns access token', () => pm.expect(body.accessToken).to.be.a('string'));",
+              "pm.test('never returns password hash', () => pm.expect(body.user).to.not.have.property('password_hash'));",
+              "pm.test('sets httpOnly refresh cookie', () => {",
+              "  const header = pm.response.headers.get('Set-Cookie') || '';",
+              "  pm.expect(header).to.include('refreshToken=');",
+              "  pm.expect(header).to.include('HttpOnly');",
+              "});",
+              "pm.collectionVariables.set('accessToken', body.accessToken);",
+              "pm.collectionVariables.set('isAdmin', String(body.user.isAdmin));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/register",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"inviteCode\": \"{{inviteCode}}\",\n  \"username\": \"{{username}}\",\n  \"displayName\": \"Test User\",\n  \"email\": \"{{username}}@example.com\",\n  \"password\": \"{{password}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "03 Register again with SAME invite (should fail)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 400 — invite is one-time', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/register",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"inviteCode\": \"{{inviteCode}}\",\n  \"username\": \"someone_else\",\n  \"displayName\": \"Someone Else\",\n  \"email\": \"someone_else@example.com\",\n  \"password\": \"another-long-password\"\n}"
+        }
+      }
+    },
+    {
+      "name": "04 Register with invalid input (should fail)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 400', () => pm.response.to.have.status(400));",
+              "pm.test('lists field errors', () => pm.expect(pm.response.json().details.length).to.be.above(0));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/register",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"inviteCode\": \"x\",\n  \"username\": \"a!\",\n  \"displayName\": \"\",\n  \"password\": \"short\"\n}"
+        }
+      }
+    },
+    {
+      "name": "05 Login with wrong password (should fail)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 401', () => pm.response.to.have.status(401));",
+              "pm.test('generic message', () => pm.expect(pm.response.json().error).to.eql('Invalid username or password'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"wrong-password\"\n}"
+        }
+      }
+    },
+    {
+      "name": "06 Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set('accessToken', pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "07 Me (with token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('is the logged-in user', () => pm.expect(pm.response.json().user.username).to.eql(pm.collectionVariables.get('username')));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/users/me",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }]
+      }
+    },
+    {
+      "name": "08 Me (no token — should fail)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["pm.test('status 401', () => pm.response.to.have.status(401));"]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "{{baseUrl}}/users/me" }
+    },
+    {
+      "name": "09 Create invite",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Any member can create invites (max 10 unused at a time).",
+              "pm.test('status 201 + code', () => {",
+              "  pm.response.to.have.status(201);",
+              "  pm.expect(pm.response.json().code).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/invites",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"days\": 3\n}" }
+      }
+    },
+    {
+      "name": "10 Refresh (uses cookie)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set('accessToken', pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "POST", "url": "{{baseUrl}}/auth/refresh" }
+    },
+    {
+      "name": "10b Forgot password (link is printed in the server terminal)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200, same answer for any email', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/forgot-password",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{username}}@example.com\"\n}" }
+      }
+    },
+    {
+      "name": "11 Logout",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["pm.test('status 204', () => pm.response.to.have.status(204));"]
+          }
+        }
+      ],
+      "request": { "method": "POST", "url": "{{baseUrl}}/auth/logout" }
+    },
+    {
+      "name": "12 Refresh after logout (should fail)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["pm.test('status 401', () => pm.response.to.have.status(401));"]
+          }
+        }
+      ],
+      "request": { "method": "POST", "url": "{{baseUrl}}/auth/refresh" }
+    }
+  ]
+}

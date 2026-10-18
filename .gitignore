@@ -1,0 +1,19 @@
+# ---- Secrets (NEVER commit) ----
+.env
+.env.*
+!.env.example
+
+# ---- Node ----
+node_modules/
+npm-debug.log*
+coverage/
+
+# ---- Client build output ----
+client/dist/
+*.local
+
+# ---- OS / editors ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
