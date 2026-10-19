@@ -13,14 +13,26 @@ const RESEND_COOLDOWN_MS = 2 * 60 * 1000; // at most one email per account every
 export async function requestPasswordReset(db, email) {
   const { rows } = await db.query('SELECT id, display_name, email FROM users WHERE email = $1', [email]);
   const user = rows[0];
-  if (!user) return;
+  // The BROWSER always gets the same answer (privacy). In development we explain in the
+  // server terminal why nothing was sent, so you aren't left guessing.
+  const devNote = (message) => {
+    if (!env.isProduction) console.log(`🔑 Password reset for ${email}: ${message}`);
+  };
+
+  if (!user) {
+    devNote('no account has this email, nothing sent. (Set it under "My account" first.)');
+    return;
+  }
 
   const recent = await db.query(
     `SELECT 1 FROM password_reset_tokens
       WHERE user_id = $1 AND created_at > now() - make_interval(secs => $2)`,
     [user.id, RESEND_COOLDOWN_MS / 1000],
   );
-  if (recent.rows.length > 0) return;
+  if (recent.rows.length > 0) {
+    devNote('a link was already sent less than 2 minutes ago, nothing sent.');
+    return;
+  }
 
   // Only the newest link should work: cancel older unused ones.
   await db.query(
@@ -44,6 +56,7 @@ export async function requestPasswordReset(db, email) {
       `${link}\n\n` +
       `If you didn't ask for this, ignore this email — your password stays the same.`,
   });
+  devNote('reset link created and handed to the mailer.');
 }
 
 // Uses a reset token: sets the new password and logs the user out everywhere.

@@ -12,6 +12,9 @@ const GROUP_WITHIN_MS = 5 * 60 * 1000; // same sender within 5 minutes → tight
 
 const messageKey = (m) => m?.clientId || m?.id;
 
+// One-tap first messages for an empty chat.
+const STARTERS = ['👋', 'Hey! 😊', 'What’s up? ✨'];
+
 export default function MessageList({
   messages,
   myId,
@@ -20,8 +23,10 @@ export default function MessageList({
   hasMore,
   loadingOlder,
   otherTyping,
+  theme,
   onLoadOlder,
   onRetry,
+  onSend, // null when the chat is read-only
 }) {
   const containerRef = useRef(null);
   // What the list looked like after the previous render.
@@ -61,7 +66,7 @@ export default function MessageList({
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto px-3 pb-4 md:px-6"
+      className="flex-1 overflow-y-auto px-3 pb-5 md:px-8"
       role="log"
       aria-label={`Conversation with ${otherName}`}
     >
@@ -71,10 +76,32 @@ export default function MessageList({
         </div>
       )}
 
-      {!hasMore && (
-        <p className="py-6 text-center text-xs text-zinc-500">
-          This is the beginning of your chat with {otherName}.
+      {!hasMore && messages.length > 0 && (
+        <p className="py-6 text-center text-xs font-semibold text-zinc-500">
+          ✨ This is the beginning of your chat with {otherName} ✨
         </p>
+      )}
+
+      {/* Brand-new chat: friendly empty state with one-tap starters */}
+      {!hasMore && messages.length === 0 && (
+        <div className="flex h-full animate-fade-in flex-col items-center justify-center py-10 text-center">
+          <span className="mb-3 animate-wiggle text-6xl" aria-hidden="true">👋</span>
+          <p className="font-display text-xl font-semibold">Say hi to {otherName}!</p>
+          <p className="mt-1 text-sm text-zinc-400">Break the ice with a tap:</p>
+          {onSend && (
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {STARTERS.map((starter) => (
+                <button
+                  key={starter}
+                  onClick={() => onSend(starter)}
+                  className="rounded-full bg-raised px-4 py-2 font-semibold ring-1 ring-line transition hover:-translate-y-0.5 hover:bg-tint-strong active:scale-95"
+                >
+                  {starter}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {messages.map((message, index) => {
@@ -89,8 +116,8 @@ export default function MessageList({
         return (
           <div key={messageKey(message)}>
             {newDay && (
-              <div className="my-4 flex justify-center">
-                <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-zinc-400">
+              <div className="sticky top-2 z-10 my-5 flex justify-center">
+                <span className="rounded-full bg-panel/90 px-4 py-1.5 text-xs font-bold text-zinc-300 shadow-md ring-1 ring-line backdrop-blur">
                   {formatDayLabel(message.createdAt)}
                 </span>
               </div>
@@ -100,13 +127,14 @@ export default function MessageList({
               isMine={message.senderId === myId}
               otherReceipt={otherReceipt}
               groupedWithPrevious={grouped}
+              theme={theme}
               onRetry={onRetry}
             />
           </div>
         );
       })}
 
-      {otherTyping && <TypingIndicator />}
+      {otherTyping && <TypingIndicator dotClass={theme.dot} />}
     </div>
   );
 }

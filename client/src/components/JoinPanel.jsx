@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { api } from '../api/client.js';
 import Button from './Button.jsx';
 import FormField from './FormField.jsx';
+import Alert from './Alert.jsx';
 
 export default function JoinPanel({ initialCode = '', onChatOpened }) {
   const [code, setCode] = useState(initialCode);
@@ -24,20 +25,19 @@ export default function JoinPanel({ initialCode = '', onChatOpened }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-sm text-zinc-400">
-        Got an invite from someone? Enter it to start a private chat with them.
-      </p>
-      {error && <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>}
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <p className="text-sm text-zinc-400">Got an invite from someone? Paste it here to start a private chat with them.</p>
+      {error && <Alert>{error}</Alert>}
       <FormField
         label="Invite code"
         value={code}
         onChange={(e) => setCode(e.target.value)}
+        placeholder="e.g. zpSwcAnkmeU_z_D0"
         autoComplete="off"
         spellCheck={false}
       />
       <Button type="submit" loading={loading} disabled={!code.trim()}>
-        Accept invite
+        Accept invite 🤝
       </Button>
     </form>
   );

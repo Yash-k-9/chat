@@ -5,6 +5,7 @@ import { api } from '../api/client.js';
 import AuthLayout from '../components/AuthLayout.jsx';
 import FormField from '../components/FormField.jsx';
 import Button from '../components/Button.jsx';
+import Alert from '../components/Alert.jsx';
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -39,17 +40,17 @@ export default function ResetPasswordPage() {
   }
 
   const footer = (
-    <Link to="/login" className="font-medium text-accent hover:underline">
-      Back to log in
+    <Link to="/login" className="font-bold text-fuchsia-300 hover:underline">
+      ← Back to log in
     </Link>
   );
 
   if (!token) {
     return (
-      <AuthLayout title="Invalid link" footer={footer}>
+      <AuthLayout emoji="🤔" title="Hmm, that link looks broken" footer={footer}>
         <p className="text-center text-sm text-zinc-400">
           This reset link is incomplete. Open the link from your email again, or{' '}
-          <Link to="/forgot-password" className="text-accent hover:underline">request a new one</Link>.
+          <Link to="/forgot-password" className="font-bold text-fuchsia-300 hover:underline">request a new one</Link>.
         </p>
       </AuthLayout>
     );
@@ -57,17 +58,16 @@ export default function ResetPasswordPage() {
 
   if (done) {
     return (
-      <AuthLayout title="Password changed" footer={footer}>
-        <div className="animate-fade-in space-y-4 text-center">
-          <p className="text-3xl">✅</p>
+      <AuthLayout emoji="🥳" title="Password changed!" footer={footer}>
+        <div className="animate-pop-in space-y-5 text-center">
           <p className="text-sm text-zinc-300">
-            Your new password is set. For safety, you've been logged out on all devices.
+            Your new password is set. For safety, you&apos;ve been logged out on all devices.
           </p>
           <Link
             to="/login"
-            className="block rounded-xl bg-gradient-to-r from-accent to-fuchsia-500 px-4 py-2.5 font-medium text-white"
+            className="block rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 px-5 py-3 font-display font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:-translate-y-0.5"
           >
-            Log in
+            Log in 🚀
           </Link>
         </div>
       </AuthLayout>
@@ -75,13 +75,18 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <AuthLayout title="Set a new password" subtitle="The link works once and expires after 30 minutes" footer={footer}>
+    <AuthLayout
+      emoji="🔐"
+      title="Set a new password"
+      subtitle="The link works once and expires after 30 minutes."
+      footer={footer}
+    >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {error && (
-          <div role="alert" className="rounded-xl bg-red-500/10 px-3.5 py-2.5 text-sm text-red-300">
+          <Alert>
             {error}{' '}
-            <Link to="/forgot-password" className="underline">Request a new link</Link>
-          </div>
+            <Link to="/forgot-password" className="font-bold underline">Request a new link</Link>
+          </Alert>
         )}
         <FormField
           label="New password"

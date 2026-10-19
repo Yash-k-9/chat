@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import AuthLayout from '../components/AuthLayout.jsx';
 import FormField from '../components/FormField.jsx';
 import Button from '../components/Button.jsx';
+import Alert from '../components/Alert.jsx';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -31,46 +32,47 @@ export default function LoginPage() {
 
   return (
     <AuthLayout
-      title="Welcome back"
-      subtitle="Your private circle is waiting"
+      emoji="👋"
+      title="Welcome back!"
+      subtitle="Your circle missed you."
       footer={
         <>
-          Have an invite code?{' '}
-          <Link to="/register" className="font-medium text-accent hover:underline">
-            Create an account
+          Got an invite?{' '}
+          <Link to="/register" className="font-bold text-fuchsia-300 hover:underline">
+            Join the circle
           </Link>
         </>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        {error && (
-          <div role="alert" className="rounded-xl bg-red-500/10 px-3.5 py-2.5 text-sm text-red-300">
-            {error}
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        {error && <Alert>{error}</Alert>}
         <FormField
           label="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          placeholder="your_username"
           autoComplete="username"
           autoCapitalize="none"
           required
         />
-        <FormField
-          label="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          required
-        />
-        <div className="-mt-2 text-right">
-          <Link to="/forgot-password" className="text-sm text-zinc-400 hover:text-accent hover:underline">
-            Forgot password?
-          </Link>
+        <div>
+          <FormField
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••••"
+            autoComplete="current-password"
+            required
+          />
+          <div className="mt-2 text-right">
+            <Link to="/forgot-password" className="text-sm font-semibold text-zinc-400 hover:text-fuchsia-300">
+              Forgot password?
+            </Link>
+          </div>
         </div>
         <Button type="submit" loading={submitting} disabled={!username || !password}>
-          Log in
+          Let&apos;s go 🚀
         </Button>
       </form>
     </AuthLayout>

@@ -6,6 +6,7 @@ import Modal from './Modal.jsx';
 import Avatar from './Avatar.jsx';
 import FormField from './FormField.jsx';
 import Button from './Button.jsx';
+import Alert from './Alert.jsx';
 
 export default function AccountModal({ onClose }) {
   const { user, updateUser } = useAuth();
@@ -33,24 +34,26 @@ export default function AccountModal({ onClose }) {
   }
 
   return (
-    <Modal title="My account" onClose={onClose}>
-      <div className="mb-5 flex items-center gap-3">
-        <Avatar name={user.displayName} seed={user.id} />
-        <div className="min-w-0">
-          <p className="truncate font-medium">{user.displayName}</p>
-          <p className="truncate text-sm text-zinc-500">@{user.username}</p>
-        </div>
+    <Modal title="My account" emoji="🙂" onClose={onClose}>
+      {/* Profile card */}
+      <div className="mb-6 flex flex-col items-center rounded-3xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/10 to-transparent p-5 text-center">
+        <Avatar name={user.displayName} seed={user.id} size="h-20 w-20 text-2xl" />
+        <p className="mt-3 font-display text-xl font-semibold">{user.displayName}</p>
+        <p className="text-sm text-zinc-400">@{user.username}</p>
+        {user.isAdmin && (
+          <span className="mt-2 rounded-full bg-amber-400/15 px-3 py-1 text-xs font-bold text-amber-200">👑 Admin</span>
+        )}
       </div>
 
       {!user.email && (
-        <p className="mb-4 rounded-xl bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+        <Alert tone="warning" className="mb-4">
           Add an email so you can reset your password if you forget it.
-        </p>
+        </Alert>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>}
-        {saved && <p className="rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">Email saved.</p>}
+        {error && <Alert>{error}</Alert>}
+        {saved && <Alert tone="success">Email saved.</Alert>}
         <FormField
           label="Email (for password reset)"
           type="email"
@@ -67,7 +70,7 @@ export default function AccountModal({ onClose }) {
           autoComplete="current-password"
         />
         <Button type="submit" loading={saving} disabled={!email.trim() || !password}>
-          Save email
+          Save email 💾
         </Button>
       </form>
     </Modal>

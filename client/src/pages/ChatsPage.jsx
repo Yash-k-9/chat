@@ -1,6 +1,6 @@
 // Main screen. Desktop: sidebar + chat side by side.
 // Mobile: ONE panel at a time. /chats shows the list, /chats/:chatId shows the chat.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { api } from '../api/client.js';
 import { useAuth } from '../auth/AuthContext.jsx';
@@ -9,6 +9,7 @@ import ChatSidebar from '../components/ChatSidebar.jsx';
 import ChatPanel, { EmptyChatPanel } from '../components/ChatPanel.jsx';
 import NewChatModal from '../components/NewChatModal.jsx';
 import AccountModal from '../components/AccountModal.jsx';
+import GettingStarted from '../components/GettingStarted.jsx';
 
 export default function ChatsPage() {
   const { chatId } = useParams(); // from the URL /chats/:chatId
@@ -21,10 +22,16 @@ export default function ChatsPage() {
   const [error, setError] = useState('');
   const [modal, setModal] = useState(null); // null | 'newChat' | 'account'
 
+  // The open chat, readable inside callbacks without re-creating them.
+  const chatIdRef = useRef(chatId);
+  chatIdRef.current = chatId;
+
   const loadChats = useCallback(() => {
     return api('/chats')
       .then((data) => {
-        setChats(data.chats);
+        // The chat that's open right now is being read, so it has no unread badge.
+        // (The server may not have processed the read receipt yet.)
+        setChats(data.chats.map((c) => (c.id === chatIdRef.current ? { ...c, unreadCount: 0 } : c)));
         setError('');
       })
       .catch((err) => setError(err.message))
@@ -91,24 +98,56 @@ export default function ChatsPage() {
   const activeChat = chats.find((chat) => chat.id === chatId);
 
   return (
-    <div className="flex h-dvh overflow-hidden">
+    // Phone: edge-to-edge single panel. Desktop: two floating rounded cards with a gap.
+    <div className="flex h-dvh gap-3 overflow-hidden md:p-3">
       <ChatSidebar
         chats={chats}
         loading={loading}
         error={error}
         onNewChat={() => setModal('newChat')}
         onOpenAccount={() => setModal('account')}
+        // Phones never see the empty right panel, so the checklist goes on top of the list.
+        topSlot={
+          !loading && (
+            <GettingStarted
+              compact
+              className="md:hidden"
+              user={user}
+              chats={chats}
+              onAddEmail={() => setModal('account')}
+              onInvite={() => setModal('newChat')}
+            />
+          )
+        }
         // On mobile, hide the list while a chat is open.
         className={`w-full md:w-80 lg:w-96 md:shrink-0 ${chatId ? 'hidden md:flex' : 'flex'}`}
       />
 
-      <main className={`min-w-0 flex-1 ${chatId ? 'block' : 'hidden md:block'}`}>
+      <main
+        className={`min-w-0 flex-1 overflow-hidden bg-panel/40 md:rounded-[2rem] md:border md:border-line ${
+          chatId ? 'block' : 'hidden md:block'
+        }`}
+      >
         {activeChat ? (
           <ChatPanel chat={activeChat} onChatsChanged={loadChats} onInvite={() => setModal('newChat')} />
         ) : chatId && !loading ? (
-          <div className="flex h-full items-center justify-center text-zinc-500">Chat not found.</div>
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-zinc-400">
+            <span className="text-5xl" aria-hidden="true">🫥</span>
+            Chat not found.
+          </div>
         ) : (
-          <EmptyChatPanel />
+          <EmptyChatPanel
+            checklist={
+              !loading && (
+                <GettingStarted
+                  user={user}
+                  chats={chats}
+                  onAddEmail={() => setModal('account')}
+                  onInvite={() => setModal('newChat')}
+                />
+              )
+            }
+          />
         )}
       </main>
 

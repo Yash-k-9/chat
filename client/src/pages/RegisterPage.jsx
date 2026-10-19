@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import AuthLayout from '../components/AuthLayout.jsx';
 import FormField from '../components/FormField.jsx';
 import Button from '../components/Button.jsx';
+import Alert from '../components/Alert.jsx';
 
 // Same rules as the server (server/src/validation/authSchemas.js).
 // Checking in the browser gives instant feedback; the SERVER check is the one that counts.
@@ -69,23 +70,20 @@ export default function RegisterPage() {
 
   return (
     <AuthLayout
+      emoji="🎉"
       title="Join the circle"
-      subtitle="Signup is invite-only. You'll be connected with whoever invited you."
+      subtitle="You'll be connected with whoever invited you."
       footer={
         <>
-          Already have an account?{' '}
-          <Link to="/login" className="font-medium text-accent hover:underline">
+          Already one of us?{' '}
+          <Link to="/login" className="font-bold text-fuchsia-300 hover:underline">
             Log in
           </Link>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        {error && (
-          <div role="alert" className="rounded-xl bg-red-500/10 px-3.5 py-2.5 text-sm text-red-300">
-            {error}
-          </div>
-        )}
+        {error && <Alert>{error}</Alert>}
         <FormField
           label="Invite code"
           name="inviteCode"
@@ -143,7 +141,7 @@ export default function RegisterPage() {
           autoComplete="new-password"
         />
         <Button type="submit" loading={submitting}>
-          Create account
+          Create my account ✨
         </Button>
       </form>
     </AuthLayout>

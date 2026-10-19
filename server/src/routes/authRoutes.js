@@ -12,6 +12,7 @@ import {
   resetPasswordSchema,
 } from '../validation/authSchemas.js';
 import { requestPasswordReset, resetPassword } from '../services/passwordReset.js';
+import { explainMailError } from '../services/mailer.js';
 import { consumeInvite, markInviteUsedBy } from '../services/invites.js';
 import { findOrCreateDirectChat } from '../services/chats.js';
 import { notifyNewChat } from '../socket/index.js';
@@ -166,7 +167,9 @@ router.post('/refresh', async (req, res) => {
 // to find out who has an account. The email is sent in the background for the same
 // reason: waiting for it would make "exists" responses measurably slower.
 router.post('/forgot-password', forgotPasswordLimiter, validate(forgotPasswordSchema), async (req, res) => {
-  requestPasswordReset(pool, req.body.email).catch((err) => console.error('Password reset email failed', err));
+  requestPasswordReset(pool, req.body.email).catch((err) =>
+    console.error(`📧 Password reset email FAILED: ${explainMailError(err)}`),
+  );
   res.json({ message: 'If an account uses that email, a reset link is on its way. It expires in 30 minutes.' });
 });
 

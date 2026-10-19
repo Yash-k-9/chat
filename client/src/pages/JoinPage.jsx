@@ -27,11 +27,12 @@ export default function JoinPage() {
 
   return (
     <AuthLayout
-      title="You've been invited"
+      emoji="💌"
+      title="You've got an invite!"
       subtitle={`Logged in as @${user.username}`}
       footer={
-        <button onClick={() => navigate('/chats')} className="font-medium text-accent hover:underline">
-          Back to my chats
+        <button onClick={() => navigate('/chats')} className="font-bold text-fuchsia-300 hover:underline">
+          ← Back to my chats
         </button>
       }
     >
