@@ -1,4 +1,4 @@
-// "My account": shows who you are and lets you set the email used for password resets.
+// "My account": who you are, the email for password resets, and your encryption key backup.
 import { useState } from 'react';
 import { api } from '../api/client.js';
 import { useAuth } from '../auth/AuthContext.jsx';
@@ -7,6 +7,7 @@ import Avatar from './Avatar.jsx';
 import FormField from './FormField.jsx';
 import Button from './Button.jsx';
 import Alert from './Alert.jsx';
+import KeyBackupSection from './KeyBackupSection.jsx';
 
 export default function AccountModal({ onClose }) {
   const { user, updateUser } = useAuth();
@@ -73,6 +74,8 @@ export default function AccountModal({ onClose }) {
           Save email 💾
         </Button>
       </form>
+
+      <KeyBackupSection />
     </Modal>
   );
 }

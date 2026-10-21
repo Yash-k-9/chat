@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router';
 import { useAuth } from '../auth/AuthContext.jsx';
+import { useE2EE } from '../crypto/E2EEContext.jsx';
 import Avatar from './Avatar.jsx';
 import Spinner from './Spinner.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
@@ -12,14 +13,17 @@ function chatTitle(chat) {
   return chat.otherUser?.displayName || 'Deleted user';
 }
 
-function lastMessagePreview(chat, myId) {
+// The last message arrives encrypted like any other, so it's decrypted here for the preview.
+function lastMessagePreview(chat, myId, readBody) {
   if (chat.disconnected) return '🔕 Disconnected';
   if (!chat.lastMessage) return 'Say hi 👋';
+  const { text } = readBody(chat.otherUser?.publicKey, { chatId: chat.id, ...chat.lastMessage });
   const prefix = chat.lastMessage.senderId === myId ? 'You: ' : '';
-  return prefix + chat.lastMessage.body;
+  return prefix + (text ?? '🔐 Encrypted message');
 }
 
 function ChatListItem({ chat, myId }) {
+  const { readBody } = useE2EE();
   const unread = chat.unreadCount > 0;
   return (
     <NavLink
@@ -44,7 +48,7 @@ function ChatListItem({ chat, myId }) {
         </div>
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <p className={`truncate text-sm ${unread ? 'font-bold text-zinc-100' : 'text-zinc-400'}`}>
-            {lastMessagePreview(chat, myId)}
+            {lastMessagePreview(chat, myId, readBody)}
           </p>
           {unread && (
             <span

@@ -1,6 +1,7 @@
 // Friendly "Getting started" checklist for new people. Each step ticks itself off
 // automatically; once all are done (or the user hides it) it disappears.
 import { useState } from 'react';
+import { useE2EE } from '../crypto/E2EEContext.jsx';
 
 const HIDDEN_KEY = 'getting-started-hidden';
 
@@ -12,7 +13,7 @@ function isHidden() {
   }
 }
 
-export function getSteps(user, chats) {
+export function getSteps(user, chats, hasKeyBackup) {
   return [
     {
       id: 'email',
@@ -22,6 +23,15 @@ export function getSteps(user, chats) {
       done: Boolean(user.email),
       action: 'onAddEmail',
       button: 'Add email',
+    },
+    {
+      id: 'backup',
+      emoji: '🔑',
+      title: 'Back up your encryption key',
+      text: 'So a new phone or browser can still read your messages.',
+      done: hasKeyBackup,
+      action: 'onAddEmail', // both live in "My account"
+      button: 'Back up',
     },
     {
       id: 'invite',
@@ -44,7 +54,8 @@ export function getSteps(user, chats) {
 
 export default function GettingStarted({ user, chats, onAddEmail, onInvite, compact = false, className = '' }) {
   const [hidden, setHidden] = useState(isHidden);
-  const steps = getSteps(user, chats);
+  const { hasBackup } = useE2EE();
+  const steps = getSteps(user, chats, hasBackup);
   const doneCount = steps.filter((step) => step.done).length;
   const actions = { onAddEmail, onInvite };
 

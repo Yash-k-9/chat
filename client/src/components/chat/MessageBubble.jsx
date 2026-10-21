@@ -1,6 +1,6 @@
 // One chat bubble. Mine: right side, theme gradient, with ticks. Theirs: left side.
 // Messages that are ONLY 1–3 emojis are shown big, without a bubble (like WhatsApp/iMessage).
-import { AlertIcon, CheckIcon, ClockIcon, DoubleCheckIcon } from '../Icons.jsx';
+import { AlertIcon, CheckIcon, ClockIcon, DoubleCheckIcon, LockIcon } from '../Icons.jsx';
 import { formatMessageTime } from '../../utils/formatTime.js';
 
 // Emoji characters + the invisible bits that glue emojis together
@@ -36,14 +36,26 @@ function Ticks({ state }) {
 
 export default function MessageBubble({ message, isMine, otherReceipt, groupedWithPrevious, theme, onRetry }) {
   const state = isMine ? deliveryState(message, otherReceipt) : null;
-  const emojiCount = bigEmojiCount(message.body);
+  // `text` is the decrypted message; null means it couldn't be decrypted.
+  const undecryptable = message.failed || message.text == null;
+  const emojiCount = undecryptable ? 0 : bigEmojiCount(message.text);
   const emojiSize = { 1: 'text-6xl', 2: 'text-5xl', 3: 'text-4xl' }[emojiCount];
 
   const meta = (
     <span className="flex items-center gap-1">
+      {/* 🔒 = end-to-end encrypted; 🔓 = old message from before encryption was added */}
+      <span title={message.encrypted ? 'End-to-end encrypted' : 'Sent before encryption was turned on'}>
+        {message.encrypted ? <LockIcon className="h-3 w-3" /> : '🔓'}
+      </span>
       <span>{formatMessageTime(message.createdAt)}</span>
       {isMine && <Ticks state={state} />}
     </span>
+  );
+
+  const content = undecryptable ? (
+    <span className="italic opacity-80">🔐 Can&apos;t decrypt this message (it was sent with an older key)</span>
+  ) : (
+    message.text
   );
 
   return (
@@ -52,7 +64,7 @@ export default function MessageBubble({ message, isMine, otherReceipt, groupedWi
         {emojiCount ? (
           // Big emoji: no bubble, just a bouncy emoji and a small time underneath.
           <div className={`animate-pop-in ${state === 'failed' ? 'opacity-60' : ''}`}>
-            <p className={`${emojiSize} leading-tight`}>{message.body}</p>
+            <p className={`${emojiSize} leading-tight`}>{message.text}</p>
             <div className={`mt-1 flex text-[11px] text-zinc-400 ${isMine ? 'justify-end' : ''}`}>{meta}</div>
           </div>
         ) : (
@@ -63,7 +75,7 @@ export default function MessageBubble({ message, isMine, otherReceipt, groupedWi
                 : `rounded-3xl bg-raised text-zinc-100 shadow-black/20 ring-1 ring-line ${groupedWithPrevious ? '' : 'rounded-bl-lg'}`
             } ${state === 'failed' ? 'opacity-60' : ''}`}
           >
-            <p className="whitespace-pre-wrap break-words">{message.body}</p>
+            <p className="whitespace-pre-wrap break-words">{content}</p>
             <div
               className={`mt-0.5 flex justify-end text-[11px] font-semibold ${isMine ? 'text-white/75' : 'text-zinc-400'}`}
             >

@@ -1,9 +1,14 @@
 // Everything about ONE open chat: history, sending, live updates, ticks, typing.
 // A custom hook = a function that uses other hooks, so components stay small.
+//
+// END-TO-END ENCRYPTION: the server only ever sees `body` = ciphertext. Every message that
+// comes in is decrypted here into `text`; every message going out is encrypted right
+// before it's sent. Messages in this hook's state always carry readable `text`.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useSocket, useSocketEvent } from '../realtime/SocketContext.jsx';
+import { useE2EE } from '../crypto/E2EEContext.jsx';
 
 const PAGE_SIZE = 30;
 const SEND_TIMEOUT_MS = 10 * 1000;
@@ -30,9 +35,18 @@ function mergeMessages(current, incoming) {
   return [...saved, ...unsent];
 }
 
-export default function useChatMessages(chatId) {
+// peerPublicKey: the other person's public key (null if they haven't set up encryption).
+export default function useChatMessages(chatId, peerPublicKey) {
   const { user } = useAuth();
   const { socket, renewToken } = useSocket();
+  const { readBody, sealBody } = useE2EE();
+
+  // Always the latest key, so callbacks don't need to be re-created when it changes.
+  const peerKeyRef = useRef(peerPublicKey);
+  peerKeyRef.current = peerPublicKey;
+
+  // Server message (ciphertext body) → message with readable `text`.
+  const open = useCallback((message) => ({ ...message, ...readBody(peerKeyRef.current, message) }), [readBody]);
 
   const [messages, setMessages] = useState([]);
   const [receipts, setReceipts] = useState([]);
@@ -62,7 +76,7 @@ export default function useChatMessages(chatId) {
     api(`/chats/${chatId}/messages?limit=${PAGE_SIZE}`)
       .then((data) => {
         if (cancelled) return;
-        setMessages(mergeMessages([], data.messages));
+        setMessages(mergeMessages([], data.messages.map(open)));
         setReceipts(data.receipts);
         setHasMore(data.hasMore);
         setStatus('ready');
@@ -76,7 +90,8 @@ export default function useChatMessages(chatId) {
     return () => {
       cancelled = true;
     };
-  }, [chatId]);
+    // Reload when the other person's key changes, so messages are decrypted with the right key.
+  }, [chatId, peerPublicKey, open]);
 
   // Infinite scroll: fetch the page before the oldest message we have.
   const loadOlder = useCallback(async () => {
@@ -87,19 +102,19 @@ export default function useChatMessages(chatId) {
     try {
       const data = await api(`/chats/${chatId}/messages?limit=${PAGE_SIZE}&before=${oldest.id}`);
       if (chatIdRef.current !== chatId) return;
-      setMessages((prev) => mergeMessages(prev, data.messages));
+      setMessages((prev) => mergeMessages(prev, data.messages.map(open)));
       setHasMore(data.hasMore);
     } finally {
       setLoadingOlder(false);
     }
-  }, [chatId, messages, loadingOlder, hasMore]);
+  }, [chatId, messages, loadingOlder, hasMore, open]);
 
   // After a reconnect we may have missed messages: fetch the newest page and merge.
   useSocketEvent('connect', () => {
     api(`/chats/${chatId}/messages?limit=${PAGE_SIZE}`)
       .then((data) => {
         if (chatIdRef.current !== chatId) return;
-        setMessages((prev) => mergeMessages(prev, data.messages));
+        setMessages((prev) => mergeMessages(prev, data.messages.map(open)));
         setReceipts(data.receipts);
       })
       .catch(() => {});
@@ -109,7 +124,7 @@ export default function useChatMessages(chatId) {
 
   useSocketEvent('message:new', (message) => {
     if (message.chatId !== chatId) return;
-    setMessages((prev) => mergeMessages(prev, [message]));
+    setMessages((prev) => mergeMessages(prev, [open(message)]));
     if (message.senderId !== user.id) setOtherTyping(false);
   });
 
@@ -148,8 +163,10 @@ export default function useChatMessages(chatId) {
 
   const deliver = useCallback(
     async (message) => {
-      const payload = { chatId: message.chatId, clientId: message.clientId, body: message.body };
       try {
+        // Encrypt right before sending. The plain `text` never leaves this browser.
+        const body = sealBody(peerKeyRef.current, message.text, { chatId: message.chatId, senderId: message.senderId });
+        const payload = { chatId: message.chatId, clientId: message.clientId, body };
         // emitWithAck waits for the server's answer; timeout() fails it if none comes.
         let response = await socket.timeout(SEND_TIMEOUT_MS).emitWithAck('message:send', payload);
         if (!response.ok && response.error === 'auth_expired') {
@@ -157,7 +174,7 @@ export default function useChatMessages(chatId) {
           response = await socket.timeout(SEND_TIMEOUT_MS).emitWithAck('message:send', payload);
         }
         if (!response.ok) throw new Error(response.error);
-        setMessages((prev) => mergeMessages(prev, [response.message]));
+        setMessages((prev) => mergeMessages(prev, [open(response.message)]));
       } catch {
         // Not confirmed in time. If the socket sends it later anyway, the 'message:new'
         // echo replaces this "failed" bubble, and the server's clientId check prevents a duplicate.
@@ -166,7 +183,7 @@ export default function useChatMessages(chatId) {
         );
       }
     },
-    [socket, renewToken],
+    [socket, renewToken, sealBody, open],
   );
 
   const stopTyping = useCallback(() => {
@@ -177,7 +194,8 @@ export default function useChatMessages(chatId) {
   }, [socket, chatId]);
 
   const sendMessage = useCallback(
-    (body) => {
+    (text) => {
+      if (!peerKeyRef.current) return; // can't encrypt for someone without a key
       stopTyping();
       // OPTIMISTIC UI: show the bubble immediately with a clock icon, confirm it later.
       const message = {
@@ -185,7 +203,8 @@ export default function useChatMessages(chatId) {
         chatId,
         senderId: user.id,
         type: 'text',
-        body,
+        text,
+        encrypted: true,
         createdAt: new Date().toISOString(),
         status: 'sending',
       };

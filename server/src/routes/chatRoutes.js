@@ -21,7 +21,12 @@ function toPublicChat(row) {
     id: row.id,
     type: row.type,
     otherUser: row.other_id
-      ? { id: row.other_id, username: row.other_username, displayName: row.other_display_name }
+      ? {
+          id: row.other_id,
+          username: row.other_username,
+          displayName: row.other_display_name,
+          publicKey: row.other_public_key, // null until they've set up encryption
+        }
       : null,
     lastMessage: row.last_at
       ? { body: row.last_body, type: row.last_type, senderId: row.last_sender_id, createdAt: row.last_at }
@@ -42,14 +47,14 @@ router.get('/', async (req, res) => {
   const { rows } = await pool.query(
     `SELECT c.id, c.type, c.created_at, c.disconnected_at, c.disconnected_by, me.user_id AS me_id,
             other.id AS other_id, other.username AS other_username,
-            other.display_name AS other_display_name,
+            other.display_name AS other_display_name, other.public_key AS other_public_key,
             last.body AS last_body, last.type AS last_type,
             last.sender_id AS last_sender_id, last.created_at AS last_at,
             unread.count AS unread_count
        FROM chat_members me
        JOIN chats c ON c.id = me.chat_id
        LEFT JOIN LATERAL (
-            SELECT u.id, u.username, u.display_name
+            SELECT u.id, u.username, u.display_name, u.public_key
               FROM chat_members m
               JOIN users u ON u.id = m.user_id
              WHERE m.chat_id = c.id AND m.user_id <> me.user_id

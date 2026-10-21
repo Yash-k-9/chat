@@ -10,7 +10,7 @@
 import { z } from 'zod';
 import pool from '../db/pool.js';
 import { verifyAccessToken } from '../utils/tokens.js';
-import { MAX_MESSAGE_LENGTH, advanceReceipt, saveMessage } from '../services/messages.js';
+import { ENCRYPTED_BODY, MAX_MESSAGE_LENGTH, advanceReceipt, saveMessage } from '../services/messages.js';
 import { isChatDisconnected } from '../services/chats.js';
 import { chatRoom } from './rooms.js';
 
@@ -23,7 +23,8 @@ const schemas = {
   'message:send': z.object({
     chatId: z.uuid(),
     clientId: z.uuid(),
-    body: z.string().min(1).max(MAX_MESSAGE_LENGTH),
+    // Ciphertext ONLY. Plain text is rejected, so the server never stores readable messages.
+    body: z.string().max(MAX_MESSAGE_LENGTH).regex(ENCRYPTED_BODY, 'Messages must be end-to-end encrypted'),
   }),
   typing: z.object({ chatId: z.uuid(), isTyping: z.boolean() }),
   receipt: z.object({ chatId: z.uuid(), messageId: z.number().int().positive() }),

@@ -1,8 +1,11 @@
 // Database helpers for messages and delivered/seen receipts.
 // Used by both the REST routes (history) and the Socket.IO handlers (live chat).
 
-// Max characters per message. Leaves room for encryption overhead in Phase 4.
-export const MAX_MESSAGE_LENGTH = 4000;
+// Messages arrive ENCRYPTED: "e2ee:v1:<nonce>:<ciphertext>" (URL-safe base64).
+// The browser limits the plain text to 4000 characters; as UTF-8 that's at most
+// 16000 bytes, which base64 turns into ~21400 characters plus the prefix and nonce.
+export const MAX_MESSAGE_LENGTH = 24000;
+export const ENCRYPTED_BODY = /^e2ee:v1:[A-Za-z0-9_-]{32}:[A-Za-z0-9_-]+$/; // 24-byte nonce = 32 base64 chars
 
 // PostgreSQL returns BIGINT as a string (it can exceed JS numbers). Our ids are far below
 // 2^53, so converting to Number is safe and makes comparisons in the browser easy.

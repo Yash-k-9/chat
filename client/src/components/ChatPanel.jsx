@@ -1,5 +1,5 @@
 // Right side: the open conversation — header, message list, composer.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useSocket } from '../realtime/SocketContext.jsx';
@@ -11,7 +11,10 @@ import MessageList from './chat/MessageList.jsx';
 import Composer from './chat/Composer.jsx';
 import ThemePicker from './chat/ThemePicker.jsx';
 import DisconnectModal from './DisconnectModal.jsx';
-import { ArrowLeftIcon, UserMinusIcon } from './Icons.jsx';
+import VerifyModal from './VerifyModal.jsx';
+import { useE2EE } from '../crypto/E2EEContext.jsx';
+import { clearVerified, getVerified, setVerified } from '../crypto/keyStore.js';
+import { ArrowLeftIcon, LockIcon, UserMinusIcon } from './Icons.jsx';
 
 // Desktop right side when no chat is open. `checklist` = the Getting-started card (or null).
 export function EmptyChatPanel({ checklist = null }) {
@@ -49,6 +52,7 @@ function DisconnectedBanner({ chat, name, onInvite }) {
 export default function ChatPanel({ chat, onChatsChanged, onInvite }) {
   const { user } = useAuth();
   const { connected } = useSocket();
+  const { identity } = useE2EE();
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
   const [theme, themeKey, setThemeKey] = useChatTheme(chat.id);
   const name = chat.otherUser?.displayName || 'Deleted user';
@@ -65,7 +69,37 @@ export default function ChatPanel({ chat, onChatsChanged, onInvite }) {
     sendMessage,
     retryMessage,
     notifyTyping,
-  } = useChatMessages(chat.id);
+  } = useChatMessages(chat.id, chat.otherUser?.publicKey);
+
+  // ---- Safety number verification (stored only on this device) ----
+  const peerId = chat.otherUser?.id;
+  const peerKey = chat.otherUser?.publicKey;
+  const [verifiedKey, setVerifiedKey] = useState(undefined); // undefined = loading, null = never verified
+  const [showVerify, setShowVerify] = useState(false);
+
+  useEffect(() => {
+    if (!peerId) return;
+    let cancelled = false;
+    getVerified(user.id, peerId).then((record) => !cancelled && setVerifiedKey(record?.publicKey ?? null));
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, peerId]);
+
+  // 'no-key' | 'unverified' | 'verified' | 'changed' (they have a NEW key since I verified)
+  let trust = 'unverified';
+  if (!peerKey) trust = 'no-key';
+  else if (verifiedKey && verifiedKey === peerKey) trust = 'verified';
+  else if (verifiedKey && verifiedKey !== peerKey) trust = 'changed';
+
+  async function markVerified() {
+    await setVerified(user.id, peerId, peerKey);
+    setVerifiedKey(peerKey);
+  }
+  async function removeVerification() {
+    await clearVerified(user.id, peerId);
+    setVerifiedKey(null);
+  }
 
   // Subtitle under the name: live status first, then the username.
   let subtitle = chat.otherUser ? `@${chat.otherUser.username}` : '';
@@ -94,6 +128,25 @@ export default function ChatPanel({ chat, onChatsChanged, onInvite }) {
           <p className="truncate font-display text-lg font-semibold leading-tight">{name}</p>
           <p className={`truncate text-xs ${subtitleClass}`}>{subtitle}</p>
         </div>
+        {peerKey && (
+          <button
+            onClick={() => setShowVerify(true)}
+            title={trust === 'verified' ? 'Verified' : 'Encrypted — tap to verify'}
+            aria-label={trust === 'verified' ? 'Encryption verified' : 'Verify encryption'}
+            className={`flex h-10 items-center gap-1.5 rounded-full px-3 text-xs font-bold transition hover:scale-105 ${
+              trust === 'verified'
+                ? 'bg-emerald-500/15 text-emerald-300'
+                : trust === 'changed'
+                  ? 'bg-amber-400/20 text-amber-200'
+                  : 'bg-tint-strong text-zinc-300'
+            }`}
+          >
+            <LockIcon className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">
+              {trust === 'verified' ? 'Verified' : trust === 'changed' ? 'Check again' : 'Encrypted'}
+            </span>
+          </button>
+        )}
         <ThemePicker value={themeKey} onChange={setThemeKey} />
         {!chat.disconnected && (
           <button
@@ -106,6 +159,15 @@ export default function ChatPanel({ chat, onChatsChanged, onInvite }) {
           </button>
         )}
       </header>
+
+      {trust === 'changed' && (
+        <div className="relative z-10 border-b border-line bg-amber-400/15 px-4 py-2.5 text-center text-sm text-amber-100">
+          ⚠️ {name}&apos;s safety number changed — maybe a new phone, or someone in the middle.{' '}
+          <button onClick={() => setShowVerify(true)} className="font-bold underline">
+            Verify again
+          </button>
+        </div>
+      )}
 
       {/* Dotted wallpaper tinted with the chat's theme color */}
       <div
@@ -137,15 +199,31 @@ export default function ChatPanel({ chat, onChatsChanged, onInvite }) {
             theme={theme}
             onLoadOlder={loadOlder}
             onRetry={retryMessage}
-            onSend={chat.disconnected ? null : sendMessage}
+            onSend={chat.disconnected || !peerKey ? null : sendMessage}
           />
         )}
       </div>
 
       {chat.disconnected ? (
         <DisconnectedBanner chat={chat} name={name} onInvite={onInvite} />
+      ) : !peerKey ? (
+        // Can't encrypt for someone who has no key yet, and we never send plain text.
+        <div className="m-3 rounded-3xl bg-raised/80 px-5 py-4 text-center text-sm text-zinc-300">
+          ⏳ Waiting for {name} to set up encryption. It happens automatically the next time they open the app.
+        </div>
       ) : (
         <Composer onSend={sendMessage} onTyping={notifyTyping} disabled={status !== 'ready'} theme={theme} />
+      )}
+
+      {showVerify && (
+        <VerifyModal
+          myPublicKey={identity.publicKey}
+          peer={chat.otherUser}
+          verified={trust === 'verified'}
+          onVerify={markVerified}
+          onUnverify={removeVerification}
+          onClose={() => setShowVerify(false)}
+        />
       )}
 
       {confirmingDisconnect && (

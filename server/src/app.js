@@ -11,6 +11,7 @@ import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import inviteRoutes from './routes/inviteRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
+import keyRoutes from './routes/keyRoutes.js';
 
 const app = express();
 
@@ -56,6 +57,7 @@ api.use('/auth', authRoutes);
 api.use('/users', userRoutes);
 api.use('/invites', inviteRoutes);
 api.use('/chats', chatRoutes);
+api.use('/keys', keyRoutes);
 
 app.use('/api', api);
 

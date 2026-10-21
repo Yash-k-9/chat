@@ -99,3 +99,12 @@ export function notifyChatUpdated(chatId) {
   if (!io) return;
   io.to(chatRoom(chatId)).emit('chat:updated', { chatId });
 }
+
+// Called when a user's public key changes: everyone they chat with reloads the chat list
+// (to get the new key), and the user's own other tabs/devices hear about it too.
+export async function notifyKeyChanged(userId) {
+  if (!io) return;
+  const chatIds = await getUserChatIds(pool, userId);
+  for (const chatId of chatIds) io.to(chatRoom(chatId)).emit('chat:updated', { chatId });
+  io.to(userRoom(userId)).emit('keys:changed');
+}

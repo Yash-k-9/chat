@@ -12,7 +12,7 @@ export default function ThemeToggle({ className = '' }) {
       aria-checked={dark}
       aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={dark ? 'Light mode' : 'Dark mode'}
-      className={`relative flex h-9 w-16 shrink-0 items-center rounded-full p-1 ring-1 ring-line transition-colors duration-300 ${
+      className={`flex h-9 w-16 shrink-0 items-center rounded-full p-1 ring-1 ring-line transition-colors duration-300 ${
         dark ? 'bg-indigo-950' : 'bg-yellow-100'
       } ${className}`}
     >

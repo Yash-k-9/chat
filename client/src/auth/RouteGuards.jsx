@@ -4,6 +4,8 @@ import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAuth } from './AuthContext.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { SocketProvider } from '../realtime/SocketContext.jsx';
+import { E2EEProvider } from '../crypto/E2EEContext.jsx';
+import KeyGate from '../crypto/KeyGate.jsx';
 
 function FullScreenLoader() {
   return (
@@ -20,10 +22,15 @@ export function ProtectedRoute() {
 
   if (status === 'loading') return <FullScreenLoader />;
   if (status === 'guest') return <Navigate to="/login" replace state={{ from: location }} />;
-  // Logged in → open the real-time connection for all protected pages.
+  // Logged in → open the real-time connection, load my encryption keys,
+  // and only show the app once the keys are ready.
   return (
     <SocketProvider>
-      <Outlet />
+      <E2EEProvider>
+        <KeyGate>
+          <Outlet />
+        </KeyGate>
+      </E2EEProvider>
     </SocketProvider>
   );
 }
