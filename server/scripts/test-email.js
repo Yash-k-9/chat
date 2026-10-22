@@ -15,6 +15,11 @@ if (!env.smtp.host) {
   process.exit(1);
 }
 
+if (!env.smtp.user || !env.smtp.pass) {
+  console.log('\n❌ SMTP_USER or SMTP_PASS is empty in server/.env. Fill in both (see .env.example).\n');
+  process.exit(1);
+}
+
 console.log(`Sending a test email to ${to} via ${env.smtp.host}:${env.smtp.port} as ${env.smtp.user}…`);
 try {
   await sendMail({

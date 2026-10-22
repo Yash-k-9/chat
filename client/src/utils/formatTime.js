@@ -15,6 +15,19 @@ export function formatDayLabel(isoDate) {
   return date.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+// "last seen 5 min ago" / "last seen today at 14:05" / "last seen 12 Oct"
+export function formatLastSeen(isoDate) {
+  if (!isoDate) return 'Offline';
+  const date = new Date(isoDate);
+  const minutes = Math.round((Date.now() - date) / 60000);
+  if (minutes < 1) return 'Last seen just now';
+  if (minutes < 60) return `Last seen ${minutes} min ago`;
+  if (date.toDateString() === new Date().toDateString()) {
+    return `Last seen today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  }
+  return `Last seen ${date.toLocaleDateString([], { day: 'numeric', month: 'short' })}`;
+}
+
 // Chat-list style time: "14:05" today, "Mon" this week, "12/10/26" older.
 export function formatChatTime(isoDate) {
   if (!isoDate) return '';

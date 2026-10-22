@@ -32,47 +32,48 @@ export default function LoginPage() {
 
   return (
     <AuthLayout
-      emoji="👋"
-      title="Welcome back!"
-      subtitle="Your circle missed you."
+      title="Welcome back"
+      subtitle="Log in to continue to your conversations."
       footer={
         <>
-          Got an invite?{' '}
-          <Link to="/register" className="font-bold text-fuchsia-300 hover:underline">
-            Join the circle
+          Have an invite?{' '}
+          <Link to="/register" className="font-medium text-accent hover:underline">
+            Create an account
           </Link>
         </>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {error && <Alert>{error}</Alert>}
         <FormField
           label="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          placeholder="your_username"
           autoComplete="username"
           autoCapitalize="none"
           required
         />
         <div>
-          <FormField
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••••"
-            autoComplete="current-password"
-            required
-          />
-          <div className="mt-2 text-right">
-            <Link to="/forgot-password" className="text-sm font-semibold text-zinc-400 hover:text-fuchsia-300">
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="login-password" className="text-sm font-medium">
+              Password
+            </label>
+            <Link to="/forgot-password" className="text-sm font-medium text-accent hover:underline">
               Forgot password?
             </Link>
           </div>
+          <input
+            id="login-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+            className="h-10 w-full rounded-lg border border-line bg-surface px-3 text-sm text-fg shadow-sm outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft focus-visible:outline-none"
+          />
         </div>
         <Button type="submit" loading={submitting} disabled={!username || !password}>
-          Let&apos;s go 🚀
+          Log in
         </Button>
       </form>
     </AuthLayout>

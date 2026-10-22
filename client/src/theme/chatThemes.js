@@ -1,57 +1,18 @@
-// Per-chat color themes ("moods"). Each viewer picks their own theme per chat;
+// Per-chat accent color for MY message bubbles. Each viewer picks their own color per chat;
 // it's saved in this browser only (localStorage), the server never sees it.
 // Tailwind needs full class names written out, so every class is spelled in full here.
 import { useCallback, useState } from 'react';
 
 export const CHAT_THEMES = {
-  grape: {
-    label: 'Grape',
-    emoji: '🍇',
-    gradient: 'from-violet-500 to-fuchsia-500', // my bubbles, send button, swatch
-    glow: 'shadow-fuchsia-500/30',
-    accentText: 'text-fuchsia-300',
-    dot: 'bg-fuchsia-400', // typing dots
-    wallpaper: 'rgb(192 132 252 / 0.10)', // dotted chat background
-  },
-  ocean: {
-    label: 'Ocean',
-    emoji: '🌊',
-    gradient: 'from-sky-400 to-indigo-500',
-    glow: 'shadow-sky-500/30',
-    accentText: 'text-sky-300',
-    dot: 'bg-sky-400',
-    wallpaper: 'rgb(56 189 248 / 0.10)',
-  },
-  mint: {
-    label: 'Mint',
-    emoji: '🌿',
-    gradient: 'from-emerald-400 to-teal-500',
-    glow: 'shadow-emerald-500/30',
-    accentText: 'text-emerald-300',
-    dot: 'bg-emerald-400',
-    wallpaper: 'rgb(52 211 153 / 0.10)',
-  },
-  sunset: {
-    label: 'Sunset',
-    emoji: '🌅',
-    gradient: 'from-amber-400 to-rose-500',
-    glow: 'shadow-orange-500/30',
-    accentText: 'text-amber-300',
-    dot: 'bg-amber-400',
-    wallpaper: 'rgb(251 191 36 / 0.09)',
-  },
-  bubblegum: {
-    label: 'Bubblegum',
-    emoji: '🍬',
-    gradient: 'from-pink-400 to-purple-500',
-    glow: 'shadow-pink-500/30',
-    accentText: 'text-pink-300',
-    dot: 'bg-pink-400',
-    wallpaper: 'rgb(244 114 182 / 0.10)',
-  },
+  blue: { label: 'Blue', bubble: 'bg-blue-600', swatch: 'bg-blue-600', link: 'text-blue-100' },
+  teal: { label: 'Teal', bubble: 'bg-teal-600', swatch: 'bg-teal-600', link: 'text-teal-100' },
+  emerald: { label: 'Green', bubble: 'bg-emerald-600', swatch: 'bg-emerald-600', link: 'text-emerald-100' },
+  amber: { label: 'Amber', bubble: 'bg-amber-600', swatch: 'bg-amber-600', link: 'text-amber-100' },
+  rose: { label: 'Rose', bubble: 'bg-rose-600', swatch: 'bg-rose-600', link: 'text-rose-100' },
+  slate: { label: 'Graphite', bubble: 'bg-slate-700', swatch: 'bg-slate-700', link: 'text-slate-200' },
 };
 
-export const DEFAULT_THEME = 'grape';
+export const DEFAULT_THEME = 'blue';
 
 const storageKey = (chatId) => `chat-theme:${chatId}`;
 
@@ -69,7 +30,7 @@ function readTheme(chatId) {
 export function useChatTheme(chatId) {
   const [state, setState] = useState(() => ({ chatId, key: readTheme(chatId) }));
 
-  // Switching chats → load that chat's theme (done during render, no extra effect needed).
+  // Switching chats → load that chat's color (done during render, no extra effect needed).
   if (state.chatId !== chatId) setState({ chatId, key: readTheme(chatId) });
 
   const setThemeKey = useCallback(
@@ -78,7 +39,7 @@ export function useChatTheme(chatId) {
       try {
         localStorage.setItem(storageKey(chatId), key);
       } catch {
-        // Not saved; the theme still applies until the page reloads.
+        // Not saved; the color still applies until the page reloads.
       }
     },
     [chatId],

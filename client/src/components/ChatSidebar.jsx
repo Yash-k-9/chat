@@ -1,12 +1,13 @@
-// Left column: greeting, search, the list of chats, and the current user at the bottom.
+// Left column: header, search, the list of chats, and the current user at the bottom.
 import { useState } from 'react';
 import { NavLink } from 'react-router';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useE2EE } from '../crypto/E2EEContext.jsx';
+import { decodeContent, describeContent } from '../chat/messageContent.js';
 import Avatar from './Avatar.jsx';
 import Spinner from './Spinner.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
-import { LogOutIcon, PlusIcon, SearchIcon } from './Icons.jsx';
+import { ChatBubbleIcon, ComposeIcon, LogOutIcon, SearchIcon, SettingsIcon } from './Icons.jsx';
 import { formatChatTime } from '../utils/formatTime.js';
 
 function chatTitle(chat) {
@@ -15,45 +16,45 @@ function chatTitle(chat) {
 
 // The last message arrives encrypted like any other, so it's decrypted here for the preview.
 function lastMessagePreview(chat, myId, readBody) {
-  if (chat.disconnected) return '🔕 Disconnected';
-  if (!chat.lastMessage) return 'Say hi 👋';
+  if (chat.disconnected) return 'Disconnected';
+  if (!chat.lastMessage) return 'No messages yet';
   const { text } = readBody(chat.otherUser?.publicKey, { chatId: chat.id, ...chat.lastMessage });
   const prefix = chat.lastMessage.senderId === myId ? 'You: ' : '';
-  return prefix + (text ?? '🔐 Encrypted message');
+  return prefix + (text == null ? 'Encrypted message' : describeContent(decodeContent(text)));
 }
 
-function ChatListItem({ chat, myId }) {
+function ChatListItem({ chat, myId, online }) {
   const { readBody } = useE2EE();
   const unread = chat.unreadCount > 0;
   return (
     <NavLink
       to={`/chats/${chat.id}`}
       className={({ isActive }) =>
-        `group flex items-center gap-3 rounded-3xl px-3 py-3 transition duration-200 ${
-          isActive
-            ? 'bg-gradient-to-r from-fuchsia-500/20 to-violet-500/10 ring-1 ring-fuchsia-400/30'
-            : 'hover:bg-tint'
+        `flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+          isActive ? 'bg-accent-soft' : 'hover:bg-subtle'
         }`
       }
     >
-      <div className={`transition group-hover:scale-105 ${chat.disconnected ? 'opacity-40 grayscale' : ''}`}>
-        <Avatar name={chatTitle(chat)} seed={chat.otherUser?.id} />
-      </div>
+      <Avatar
+        name={chatTitle(chat)}
+        seed={chat.otherUser?.id}
+        size="h-11 w-11 text-sm"
+        online={online}
+        className={chat.disconnected ? 'opacity-50 grayscale' : ''}
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="truncate font-display text-[17px] font-medium">{chatTitle(chat)}</p>
-          <span className={`shrink-0 text-xs ${unread ? 'font-bold text-pink-300' : 'text-zinc-500'}`}>
+          <p className={`truncate text-sm ${unread ? 'font-semibold' : 'font-medium'}`}>{chatTitle(chat)}</p>
+          <span className={`shrink-0 text-xs ${unread ? 'font-semibold text-accent' : 'text-faint'}`}>
             {formatChatTime(chat.lastMessage?.createdAt)}
           </span>
         </div>
         <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p className={`truncate text-sm ${unread ? 'font-bold text-zinc-100' : 'text-zinc-400'}`}>
-            {lastMessagePreview(chat, myId, readBody)}
-          </p>
+          <p className={`truncate text-sm ${unread ? 'text-fg' : 'text-muted'}`}>{lastMessagePreview(chat, myId, readBody)}</p>
           {unread && (
             <span
               aria-label={`${chat.unreadCount} unread`}
-              className="flex h-6 min-w-6 shrink-0 animate-pop-in items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-fuchsia-500 px-2 text-xs font-extrabold text-white shadow-md shadow-pink-500/30"
+              className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white"
             >
               {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
             </span>
@@ -67,103 +68,113 @@ function ChatListItem({ chat, myId }) {
 function EmptyChats({ onNewChat }) {
   return (
     <div className="flex animate-fade-in flex-col items-center px-6 py-14 text-center">
-      <div className="mb-4 animate-float text-6xl" aria-hidden="true">💌</div>
-      <p className="font-display text-lg font-semibold">No chats yet</p>
-      <p className="mt-1 text-sm text-zinc-400">Invite your favourite people to start chatting.</p>
+      <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft">
+        <ChatBubbleIcon className="h-6 w-6 text-accent" />
+      </span>
+      <p className="text-sm font-semibold">No conversations yet</p>
+      <p className="mt-1 text-sm text-muted">Invite someone to start your first private chat.</p>
       <button
         onClick={onNewChat}
-        className="mt-5 rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 px-5 py-2.5 font-display font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:-translate-y-0.5"
+        className="mt-5 inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover"
       >
-        Invite someone ✨
+        <ComposeIcon className="h-4 w-4" />
+        New conversation
       </button>
     </div>
   );
 }
 
-export default function ChatSidebar({ chats, loading, error, onNewChat, onOpenAccount, topSlot = null, className = '' }) {
+const iconButton = 'rounded-lg p-2 text-muted transition hover:bg-subtle hover:text-fg';
+
+export default function ChatSidebar({
+  chats,
+  loading,
+  error,
+  onlineUserIds = new Set(),
+  onNewChat,
+  onOpenAccount,
+  topSlot = null,
+  className = '',
+}) {
   const { user, logout } = useAuth();
   const [query, setQuery] = useState('');
 
-  const visibleChats = chats.filter((chat) =>
-    chatTitle(chat).toLowerCase().includes(query.trim().toLowerCase()),
-  );
-  const firstName = user.displayName.split(' ')[0];
+  const visibleChats = chats.filter((chat) => chatTitle(chat).toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     // Display (flex / hidden) comes from the parent's className, so it can hide us on mobile.
-    <aside
-      className={`h-full flex-col overflow-hidden bg-panel/85 backdrop-blur md:rounded-[2rem] md:border md:border-line ${className}`}
-    >
-      <header className="flex items-end justify-between px-5 pb-4 pt-6">
-        <div>
-          <p className="text-sm font-semibold text-zinc-400">Hey {firstName} 👋</p>
-          <h1 className="font-display text-3xl font-semibold">Chats</h1>
+    <aside className={`h-full flex-col border-r border-line bg-surface ${className}`}>
+      <header className="flex h-16 shrink-0 items-center justify-between px-4">
+        <h1 className="text-lg font-semibold tracking-tight">Chats</h1>
+        <div className="flex items-center gap-1">
+          <button onClick={onNewChat} aria-label="New conversation" title="New conversation" className={iconButton}>
+            <ComposeIcon />
+          </button>
         </div>
-        <button
-          onClick={onNewChat}
-          aria-label="New chat"
-          title="New chat"
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 text-white shadow-lg shadow-fuchsia-500/30 transition duration-300 hover:rotate-90 hover:scale-105 active:scale-95"
-        >
-          <PlusIcon className="h-6 w-6" />
-        </button>
       </header>
 
-      <div className="px-4 pb-3">
-        <label className="flex items-center gap-2.5 rounded-full bg-raised/70 px-4 py-2.5 text-zinc-500 ring-2 ring-transparent transition focus-within:bg-raised focus-within:ring-fuchsia-400/50">
+      <div className="px-3 pb-2">
+        <label className="flex h-9 items-center gap-2 rounded-lg border border-line bg-subtle px-3 text-faint transition focus-within:border-accent focus-within:bg-surface focus-within:ring-4 focus-within:ring-accent-soft">
           <SearchIcon className="h-4 w-4" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search chats"
+            placeholder="Search"
             aria-label="Search chats"
-            className="w-full bg-transparent text-sm text-zinc-100 placeholder-zinc-500 outline-none focus-visible:outline-none"
+            className="w-full bg-transparent text-sm text-fg placeholder-faint outline-none focus-visible:outline-none"
           />
         </label>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-2 pb-2" aria-label="Chats">
-        {topSlot && <div className="px-1 pb-2">{topSlot}</div>}
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-2" aria-label="Chats">
+        {topSlot && <div className="px-1 py-2">{topSlot}</div>}
         {loading && (
           <div className="flex justify-center py-12">
-            <Spinner className="h-7 w-7" />
+            <Spinner className="h-6 w-6" />
           </div>
         )}
-        {error && <p className="px-4 py-4 text-sm text-rose-300">😬 {error}</p>}
+        {error && <p className="px-3 py-4 text-sm text-danger">{error}</p>}
         {!loading && !error && chats.length === 0 && <EmptyChats onNewChat={onNewChat} />}
         {!loading && chats.length > 0 && visibleChats.length === 0 && (
-          <p className="px-4 py-8 text-center text-sm text-zinc-500">No chats match “{query}” 🔍</p>
+          <p className="px-3 py-8 text-center text-sm text-muted">No chats match “{query}”.</p>
         )}
         {visibleChats.map((chat) => (
-          <ChatListItem key={chat.id} chat={chat} myId={user.id} />
+          <ChatListItem
+            key={chat.id}
+            chat={chat}
+            myId={user.id}
+            online={Boolean(chat.otherUser && onlineUserIds.has(chat.otherUser.id))}
+          />
         ))}
       </nav>
 
-      <footer className="m-3 flex items-center gap-1 rounded-3xl bg-raised/60 p-1.5">
-        {/* Click your name → account settings (email for password reset) */}
+      <footer className="flex shrink-0 items-center gap-1 border-t border-line p-2">
         <button
           onClick={onOpenAccount}
-          title="My account"
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-[1.25rem] px-2 py-1.5 text-left transition hover:bg-tint"
+          title="Settings"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-subtle"
         >
           <span className="relative">
-            <Avatar name={user.displayName} seed={user.id} size="h-10 w-10 text-sm" />
+            <Avatar name={user.displayName} seed={user.id} size="h-9 w-9 text-xs" />
             {!user.email && (
               // Amber dot: no recovery email yet
-              <span className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 animate-pulse rounded-full border-2 border-raised bg-amber-400" />
+              <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-surface bg-warning" />
             )}
           </span>
           <span className="min-w-0">
-            <span className="block truncate font-display font-medium">{user.displayName}</span>
-            <span className="block truncate text-xs text-zinc-400">@{user.username}</span>
+            <span className="block truncate text-sm font-medium">{user.displayName}</span>
+            <span className="block truncate text-xs text-faint">@{user.username}</span>
           </span>
+        </button>
+        <button onClick={onOpenAccount} aria-label="Settings" title="Settings" className={iconButton}>
+          <SettingsIcon />
         </button>
         <ThemeToggle />
         <button
           onClick={logout}
           aria-label="Log out"
           title="Log out"
-          className="rounded-full p-2.5 text-zinc-400 transition hover:bg-rose-500/15 hover:text-rose-300"
+          className="rounded-lg p-2 text-muted transition hover:bg-danger-soft hover:text-danger"
         >
           <LogOutIcon />
         </button>

@@ -3,9 +3,11 @@
 //   useSocketEvent(name, fn)    → listen to a server event while a component is mounted
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
-import { expireSession, getAccessToken, refreshSession } from '../api/client.js';
+import { REALTIME_URL, expireSession, getAccessToken, refreshSession } from '../api/client.js';
 
-const API_URL = import.meta.env.VITE_API_URL || undefined; // undefined = same origin (Vite proxy)
+// Sockets connect straight to the backend (they authenticate with the token, not cookies).
+// Empty in development = same origin, through Vite's proxy.
+const SOCKET_URL = REALTIME_URL || undefined;
 
 // The server checks the token on connect and on every event, but tokens last 15 minutes.
 // We renew a bit before that, so a long chat session never gets interrupted.
@@ -17,7 +19,7 @@ export function SocketProvider({ children }) {
   // Created once. autoConnect: false → we connect in the effect below.
   // auth is a FUNCTION so every (re)connect sends the CURRENT token, not the first one.
   const [socket] = useState(() =>
-    io(API_URL, {
+    io(SOCKET_URL, {
       autoConnect: false,
       auth: (callback) => callback({ token: getAccessToken() }),
     }),

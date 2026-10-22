@@ -35,6 +35,10 @@ export async function checkMailer() {
     );
     return;
   }
+  if (!env.smtp.user || !env.smtp.pass) {
+    console.error(`📧 Email: SMTP_HOST is set but SMTP_USER or SMTP_PASS is empty — ${env.smtp.host} will refuse to send. Fill both in .env.`);
+    return;
+  }
   try {
     await transporter.verify(); // logs in to the SMTP server without sending anything
     console.log(`📧 Email: connected to ${env.smtp.host} as ${env.smtp.user || '(no login)'} ✅`);

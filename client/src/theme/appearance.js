@@ -4,7 +4,7 @@
 import { useCallback, useState } from 'react';
 
 const STORAGE_KEY = 'appearance';
-const THEME_COLORS = { light: '#fdf6ee', dark: '#120f26' }; // browser UI color on phones
+const THEME_COLORS = { light: '#f8fafc', dark: '#0b1120' }; // browser UI color on phones
 
 export function getAppearance() {
   return document.documentElement.classList.contains('dark') ? 'dark' : 'light';

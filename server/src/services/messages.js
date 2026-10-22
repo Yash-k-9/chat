@@ -1,10 +1,12 @@
-// Database helpers for messages and delivered/seen receipts.
+// Database helpers for messages, receipts, reactions and expiry.
 // Used by both the REST routes (history) and the Socket.IO handlers (live chat).
+import { storage } from './mediaStorage.js';
 
 // Messages arrive ENCRYPTED: "e2ee:v1:<nonce>:<ciphertext>" (URL-safe base64).
 // The browser limits the plain text to 4000 characters; as UTF-8 that's at most
 // 16000 bytes, which base64 turns into ~21400 characters plus the prefix and nonce.
-export const MAX_MESSAGE_LENGTH = 24000;
+// Media messages carry a small JSON (file key, size, a tiny preview image), up to ~20 KB.
+export const MAX_MESSAGE_LENGTH = 48000;
 export const ENCRYPTED_BODY = /^e2ee:v1:[A-Za-z0-9_-]{32}:[A-Za-z0-9_-]+$/; // 24-byte nonce = 32 base64 chars
 
 // PostgreSQL returns BIGINT as a string (it can exceed JS numbers). Our ids are far below
@@ -16,7 +18,11 @@ export function toPublicMessage(row) {
     senderId: row.sender_id,
     clientId: row.client_id,
     type: row.type,
-    body: row.body,
+    body: row.deleted_at ? null : row.body,
+    deleted: Boolean(row.deleted_at),
+    expiresAt: row.expires_at,
+    // [{ userId, body }] — each body is an encrypted emoji
+    reactions: row.reactions ?? [],
     createdAt: row.created_at,
   };
 }
@@ -30,47 +36,63 @@ function toPublicReceipt(row) {
   };
 }
 
+// "Member" = in the chat AND hasn't removed it from their own list.
 export async function isChatMember(db, chatId, userId) {
+  return Boolean(await getMembership(db, chatId, userId));
+}
+
+// → { clearedBeforeId } for an active member, or null (not a member / removed the chat).
+// Messages with id <= clearedBeforeId are hidden for this member (history before a removal).
+export async function getMembership(db, chatId, userId) {
   const { rows } = await db.query(
-    'SELECT 1 FROM chat_members WHERE chat_id = $1 AND user_id = $2',
+    'SELECT cleared_before_id FROM chat_members WHERE chat_id = $1 AND user_id = $2 AND removed_at IS NULL',
     [chatId, userId],
   );
-  return rows.length > 0;
+  return rows[0] ? { clearedBeforeId: Number(rows[0].cleared_before_id) } : null;
 }
 
 export async function getUserChatIds(db, userId) {
-  const { rows } = await db.query('SELECT chat_id FROM chat_members WHERE user_id = $1', [userId]);
+  const { rows } = await db.query('SELECT chat_id FROM chat_members WHERE user_id = $1 AND removed_at IS NULL', [userId]);
   return rows.map((row) => row.chat_id);
 }
 
 // Saves a message. If this sender already sent this clientId (a retry), returns the
 // existing message instead, with created = false so it isn't broadcast twice.
+// Chats with disappearing messages get an expiry time from the chat's setting.
 export async function saveMessage(db, { chatId, senderId, clientId, type, body }) {
   const inserted = await db.query(
-    `INSERT INTO messages (chat_id, sender_id, client_id, type, body)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO messages (chat_id, sender_id, client_id, type, body, expires_at)
+     SELECT $1, $2, $3, $4, $5,
+            CASE WHEN c.disappear_seconds IS NULL THEN NULL
+                 ELSE now() + make_interval(secs => c.disappear_seconds) END
+       FROM chats c WHERE c.id = $1
      ON CONFLICT (sender_id, client_id) DO NOTHING
      RETURNING *`,
     [chatId, senderId, clientId, type, body],
   );
   if (inserted.rows[0]) return { message: toPublicMessage(inserted.rows[0]), created: true };
 
-  const existing = await db.query(
-    'SELECT * FROM messages WHERE sender_id = $1 AND client_id = $2',
-    [senderId, clientId],
-  );
+  const existing = await db.query('SELECT * FROM messages WHERE sender_id = $1 AND client_id = $2', [senderId, clientId]);
   return { message: toPublicMessage(existing.rows[0]), created: false };
 }
 
-// One page of history, newest first in the query, returned oldest â†’ newest.
+// One page of history, newest first in the query, returned oldest → newest.
 // "before" = the oldest message id the client already has (cursor pagination).
-export async function listMessages(db, chatId, { before = null, limit = 30 } = {}) {
+// Expired (disappeared) messages are never returned, even before the cleanup job runs.
+// afterId: hide everything up to this id (history the reader removed for themselves).
+export async function listMessages(db, chatId, { before = null, limit = 30, afterId = 0 } = {}) {
   const { rows } = await db.query(
-    `SELECT * FROM messages
-      WHERE chat_id = $1 AND ($2::bigint IS NULL OR id < $2)
-      ORDER BY id DESC
+    `SELECT m.*,
+            (SELECT json_agg(json_build_object('userId', r.user_id, 'body', r.body) ORDER BY r.created_at)
+               FROM message_reactions r WHERE r.message_id = m.id) AS reactions
+       FROM messages m
+      WHERE m.chat_id = $1
+        AND ($2::bigint IS NULL OR m.id < $2)
+        AND m.id > $4
+        AND (m.expires_at IS NULL OR m.expires_at > now())
+      ORDER BY m.id DESC
       LIMIT $3`,
-    [chatId, before, limit + 1], // ask for one extra row to know if there are more
+    [chatId, before, limit + 1, afterId], // ask for one extra row to know if there are more
   );
   const hasMore = rows.length > limit;
   const page = rows.slice(0, limit).reverse();
@@ -126,4 +148,47 @@ export async function markAllDelivered(db, userId) {
     [userId],
   );
   return rows.map(toPublicReceipt);
+}
+
+// "Delete for everyone": only the sender can, and the ciphertext is wiped from the database.
+// Returns true if a message was deleted.
+export async function deleteMessage(db, { chatId, messageId, userId }) {
+  const { rowCount } = await db.query(
+    `UPDATE messages SET body = '', deleted_at = now()
+      WHERE id = $1 AND chat_id = $2 AND sender_id = $3 AND deleted_at IS NULL`,
+    [messageId, chatId, userId],
+  );
+  if (rowCount) await db.query('DELETE FROM message_reactions WHERE message_id = $1', [messageId]);
+  return rowCount > 0;
+}
+
+// Set (body = encrypted emoji) or remove (body = null) MY reaction on a message.
+// Returns false if the message isn't in this chat (or was deleted).
+export async function setReaction(db, { chatId, messageId, userId, body }) {
+  const { rows } = await db.query(
+    'SELECT 1 FROM messages WHERE id = $1 AND chat_id = $2 AND deleted_at IS NULL',
+    [messageId, chatId],
+  );
+  if (!rows[0]) return false;
+
+  if (body) {
+    await db.query(
+      `INSERT INTO message_reactions (message_id, user_id, body) VALUES ($1, $2, $3)
+       ON CONFLICT (message_id, user_id) DO UPDATE SET body = EXCLUDED.body, created_at = now()`,
+      [messageId, userId, body],
+    );
+  } else {
+    await db.query('DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2', [messageId, userId]);
+  }
+  return true;
+}
+
+// Background job: permanently remove disappeared messages and expired media files.
+export async function cleanupExpired(db) {
+  const messages = await db.query('DELETE FROM messages WHERE expires_at <= now()');
+  const media = await db.query('DELETE FROM media WHERE expires_at <= now() RETURNING storage_key');
+  for (const row of media.rows) {
+    if (row.storage_key) await storage.remove(row.storage_key).catch(() => {});
+  }
+  return { messages: messages.rowCount, media: media.rowCount };
 }

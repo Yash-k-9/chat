@@ -8,23 +8,23 @@ export default function FormField({ label, error, hint, ...inputProps }) {
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 ml-1 block text-sm font-bold text-zinc-300">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-fg">
         {label}
       </label>
       <input
         id={id}
         aria-invalid={Boolean(error)}
         aria-describedby={error || hint ? messageId : undefined}
-        className={`w-full rounded-2xl border-2 bg-raised/70 px-4 py-3 text-[15px] text-zinc-100 placeholder-zinc-500 outline-none transition duration-200 focus:bg-raised focus-visible:outline-none ${
+        className={`h-10 w-full rounded-lg border bg-surface px-3 text-sm text-fg placeholder-faint shadow-sm outline-none transition focus-visible:outline-none focus:ring-4 ${
           error
-            ? 'border-rose-400/70 focus:border-rose-400'
-            : 'border-transparent hover:border-line focus:border-fuchsia-400/70'
+            ? 'border-danger focus:ring-danger-soft'
+            : 'border-line focus:border-accent focus:ring-accent-soft'
         }`}
         {...inputProps}
       />
       {(error || hint) && (
-        <p id={messageId} className={`ml-1 mt-1.5 text-xs ${error ? 'font-semibold text-rose-300' : 'text-zinc-500'}`}>
-          {error ? `⚠️ ${error}` : hint}
+        <p id={messageId} className={`mt-1.5 text-xs ${error ? 'text-danger' : 'text-faint'}`}>
+          {error || hint}
         </p>
       )}
     </div>

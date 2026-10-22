@@ -1,9 +1,9 @@
-// Modal dialog: dark blurred overlay, bouncy panel. Closes on Escape or a click outside.
-// On phones it slides up from the bottom like a sheet.
+// Modal dialog: dimmed backdrop, centered card (a bottom sheet on phones).
+// Closes on Escape or a click outside. `size`: 'md' (default) | 'lg'.
 import { useEffect } from 'react';
 import { CloseIcon } from './Icons.jsx';
 
-export default function Modal({ title, emoji, onClose, children }) {
+export default function Modal({ title, description, onClose, size = 'md', children }) {
   useEffect(() => {
     function handleKey(event) {
       if (event.key === 'Escape') onClose();
@@ -14,7 +14,7 @@ export default function Modal({ title, emoji, onClose, children }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex animate-fade-in items-end justify-center bg-overlay backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex animate-fade-in items-end justify-center bg-overlay sm:items-center sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -23,22 +23,24 @@ export default function Modal({ title, emoji, onClose, children }) {
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[92dvh] w-full max-w-md animate-slide-up overflow-y-auto rounded-t-[2rem] border border-line bg-panel p-6 shadow-2xl sm:rounded-[2rem]"
+        className={`max-h-[92dvh] w-full animate-slide-up overflow-y-auto rounded-t-2xl border border-line bg-surface shadow-2xl sm:rounded-2xl ${
+          size === 'lg' ? 'max-w-xl' : 'max-w-md'
+        }`}
       >
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 font-display text-xl font-semibold">
-            {emoji && <span className="text-2xl">{emoji}</span>}
-            {title}
-          </h2>
+        <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
+          <div>
+            <h2 className="text-base font-semibold">{title}</h2>
+            {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
+          </div>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="rounded-full bg-raised p-2 text-zinc-400 transition hover:rotate-90 hover:text-zinc-100"
+            className="-mr-2 rounded-md p-1.5 text-faint transition hover:bg-subtle hover:text-fg"
           >
             <CloseIcon className="h-4 w-4" />
           </button>
         </div>
-        {children}
+        <div className="px-6 py-5">{children}</div>
       </div>
     </div>
   );

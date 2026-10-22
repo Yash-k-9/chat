@@ -8,6 +8,7 @@ import AuthLayout from '../components/AuthLayout.jsx';
 import FormField from '../components/FormField.jsx';
 import Button from '../components/Button.jsx';
 import Alert from '../components/Alert.jsx';
+import { MailIcon } from '../components/Icons.jsx';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -35,24 +36,25 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthLayout
-      emoji="🔑"
-      title="Forgot your password?"
-      subtitle="Happens to the best of us. We'll email you a reset link."
+      title="Reset your password"
+      subtitle="Enter the email on your account and we'll send you a reset link."
       footer={
-        <Link to="/login" className="font-bold text-fuchsia-300 hover:underline">
-          ← Back to log in
+        <Link to="/login" className="font-medium text-accent hover:underline">
+          Back to log in
         </Link>
       }
     >
       {sentMessage ? (
-        <div className="animate-pop-in space-y-3 py-2 text-center">
-          <p className="animate-float text-6xl" aria-hidden="true">📬</p>
-          <p className="font-display text-lg font-semibold">Check your inbox!</p>
-          <p className="text-sm text-zinc-300">{sentMessage}</p>
-          <p className="text-xs text-zinc-500">No email? Check spam, or try again in a couple of minutes.</p>
+        <div className="animate-fade-in rounded-xl border border-line bg-surface p-6 text-center shadow-sm">
+          <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft">
+            <MailIcon className="h-6 w-6 text-accent" />
+          </span>
+          <p className="font-semibold">Check your inbox</p>
+          <p className="mt-2 text-sm text-muted">{sentMessage}</p>
+          <p className="mt-3 text-xs text-faint">No email? Check your spam folder, or try again in a few minutes.</p>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {error && <Alert>{error}</Alert>}
           <FormField
             label="Email"
@@ -64,7 +66,7 @@ export default function ForgotPasswordPage() {
             required
           />
           <Button type="submit" loading={submitting} disabled={!email.trim()}>
-            Send reset link 📨
+            Send reset link
           </Button>
         </form>
       )}

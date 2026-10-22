@@ -70,13 +70,12 @@ export default function RegisterPage() {
 
   return (
     <AuthLayout
-      emoji="🎉"
-      title="Join the circle"
-      subtitle="You'll be connected with whoever invited you."
+      title="Create your account"
+      subtitle="Signup is invite-only. You'll be connected with whoever invited you."
       footer={
         <>
-          Already one of us?{' '}
-          <Link to="/login" className="font-bold text-fuchsia-300 hover:underline">
+          Already have an account?{' '}
+          <Link to="/login" className="font-medium text-accent hover:underline">
             Log in
           </Link>
         </>
@@ -141,7 +140,7 @@ export default function RegisterPage() {
           autoComplete="new-password"
         />
         <Button type="submit" loading={submitting}>
-          Create my account ✨
+          Create account
         </Button>
       </form>
     </AuthLayout>

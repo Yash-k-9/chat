@@ -1,4 +1,4 @@
-// Main screen. Desktop: sidebar + chat side by side.
+// Main screen. Desktop: chat list + conversation side by side, edge to edge.
 // Mobile: ONE panel at a time. /chats shows the list, /chats/:chatId shows the chat.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -21,6 +21,7 @@ export default function ChatsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modal, setModal] = useState(null); // null | 'newChat' | 'account'
+  const [onlineUserIds, setOnlineUserIds] = useState(() => new Set());
 
   // The open chat, readable inside callbacks without re-creating them.
   const chatIdRef = useRef(chatId);
@@ -48,15 +49,48 @@ export default function ChatsPage() {
     setChats((prev) => prev.map((c) => (c.id === chatId && c.unreadCount ? { ...c, unreadCount: 0 } : c)));
   }, [chatId]);
 
+  // Unread count in the browser tab title: "(3) Private Chat".
+  useEffect(() => {
+    const total = chats.reduce((sum, chat) => sum + (chat.unreadCount || 0), 0);
+    document.title = total ? `(${total}) Private Chat` : 'Private Chat';
+  }, [chats]);
+
+  // ---- Presence: who of my contacts is online right now ----
+  const refreshPresence = useCallback(() => {
+    socket
+      .timeout(5000)
+      .emitWithAck('presence:list')
+      .then((response) => response.ok && setOnlineUserIds(new Set(response.userIds)))
+      .catch(() => {});
+  }, [socket]);
+
+  useSocketEvent('presence', ({ userId, online }) => {
+    setOnlineUserIds((prev) => {
+      const next = new Set(prev);
+      if (online) next.add(userId);
+      else next.delete(userId);
+      return next;
+    });
+  });
+
   // ---- Live updates for the list ----
 
   // (Re)connected: something may have changed while we were offline.
-  useSocketEvent('connect', loadChats);
+  useSocketEvent('connect', () => {
+    loadChats();
+    refreshPresence();
+  });
+  useEffect(() => {
+    if (socket.connected) refreshPresence();
+  }, [socket, refreshPresence]);
 
   // Someone used one of our invites (or we used theirs): show the new chat.
-  useSocketEvent('chat:new', loadChats);
+  useSocketEvent('chat:new', () => {
+    loadChats();
+    refreshPresence();
+  });
 
-  // A chat changed, e.g. someone disconnected: refresh so it shows as read-only.
+  // A chat changed (disconnected, new key, settings): refresh it.
   useSocketEvent('chat:updated', loadChats);
 
   useSocketEvent('message:new', (message) => {
@@ -96,58 +130,40 @@ export default function ChatsPage() {
   }
 
   const activeChat = chats.find((chat) => chat.id === chatId);
+  const checklistProps = {
+    user,
+    chats,
+    onAddEmail: () => setModal('account'),
+    onInvite: () => setModal('newChat'),
+  };
 
   return (
-    // Phone: edge-to-edge single panel. Desktop: two floating rounded cards with a gap.
-    <div className="flex h-dvh gap-3 overflow-hidden md:p-3">
+    <div className="flex h-dvh overflow-hidden">
       <ChatSidebar
         chats={chats}
         loading={loading}
         error={error}
+        onlineUserIds={onlineUserIds}
         onNewChat={() => setModal('newChat')}
         onOpenAccount={() => setModal('account')}
         // Phones never see the empty right panel, so the checklist goes on top of the list.
-        topSlot={
-          !loading && (
-            <GettingStarted
-              compact
-              className="md:hidden"
-              user={user}
-              chats={chats}
-              onAddEmail={() => setModal('account')}
-              onInvite={() => setModal('newChat')}
-            />
-          )
-        }
+        topSlot={!loading && <GettingStarted compact className="md:hidden" {...checklistProps} />}
         // On mobile, hide the list while a chat is open.
-        className={`w-full md:w-80 lg:w-96 md:shrink-0 ${chatId ? 'hidden md:flex' : 'flex'}`}
+        className={`w-full md:w-80 lg:w-[22rem] md:shrink-0 ${chatId ? 'hidden md:flex' : 'flex'}`}
       />
 
-      <main
-        className={`min-w-0 flex-1 overflow-hidden bg-panel/40 md:rounded-[2rem] md:border md:border-line ${
-          chatId ? 'block' : 'hidden md:block'
-        }`}
-      >
+      <main className={`min-w-0 flex-1 overflow-hidden bg-app ${chatId ? 'block' : 'hidden md:block'}`}>
         {activeChat ? (
-          <ChatPanel chat={activeChat} onChatsChanged={loadChats} onInvite={() => setModal('newChat')} />
-        ) : chatId && !loading ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-zinc-400">
-            <span className="text-5xl" aria-hidden="true">🫥</span>
-            Chat not found.
-          </div>
-        ) : (
-          <EmptyChatPanel
-            checklist={
-              !loading && (
-                <GettingStarted
-                  user={user}
-                  chats={chats}
-                  onAddEmail={() => setModal('account')}
-                  onInvite={() => setModal('newChat')}
-                />
-              )
-            }
+          <ChatPanel
+            chat={activeChat}
+            online={Boolean(activeChat.otherUser && onlineUserIds.has(activeChat.otherUser.id))}
+            onChatsChanged={loadChats}
+            onInvite={() => setModal('newChat')}
           />
+        ) : chatId && !loading ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted">This chat doesn&apos;t exist.</div>
+        ) : (
+          <EmptyChatPanel checklist={!loading && <GettingStarted {...checklistProps} />} />
         )}
       </main>
 

@@ -40,17 +40,17 @@ export default function ResetPasswordPage() {
   }
 
   const footer = (
-    <Link to="/login" className="font-bold text-fuchsia-300 hover:underline">
-      ← Back to log in
+    <Link to="/login" className="font-medium text-accent hover:underline">
+      Back to log in
     </Link>
   );
 
   if (!token) {
     return (
-      <AuthLayout emoji="🤔" title="Hmm, that link looks broken" footer={footer}>
-        <p className="text-center text-sm text-zinc-400">
+      <AuthLayout title="Invalid reset link" footer={footer}>
+        <p className="text-sm text-muted">
           This reset link is incomplete. Open the link from your email again, or{' '}
-          <Link to="/forgot-password" className="font-bold text-fuchsia-300 hover:underline">request a new one</Link>.
+          <Link to="/forgot-password" className="font-medium text-accent hover:underline">request a new one</Link>.
         </p>
       </AuthLayout>
     );
@@ -58,16 +58,14 @@ export default function ResetPasswordPage() {
 
   if (done) {
     return (
-      <AuthLayout emoji="🥳" title="Password changed!" footer={footer}>
-        <div className="animate-pop-in space-y-5 text-center">
-          <p className="text-sm text-zinc-300">
-            Your new password is set. For safety, you&apos;ve been logged out on all devices.
-          </p>
+      <AuthLayout title="Password changed" footer={footer}>
+        <div className="animate-fade-in space-y-5">
+          <Alert tone="success">Your new password is set. For safety, you&apos;ve been logged out on all devices.</Alert>
           <Link
             to="/login"
-            className="block rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 px-5 py-3 font-display font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:-translate-y-0.5"
+            className="flex h-10 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-white shadow-sm hover:bg-accent-hover"
           >
-            Log in 🚀
+            Log in
           </Link>
         </div>
       </AuthLayout>
@@ -76,7 +74,6 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthLayout
-      emoji="🔐"
       title="Set a new password"
       subtitle="The link works once and expires after 30 minutes."
       footer={footer}
@@ -85,7 +82,7 @@ export default function ResetPasswordPage() {
         {error && (
           <Alert>
             {error}{' '}
-            <Link to="/forgot-password" className="font-bold underline">Request a new link</Link>
+            <Link to="/forgot-password" className="font-medium underline">Request a new link</Link>
           </Alert>
         )}
         <FormField

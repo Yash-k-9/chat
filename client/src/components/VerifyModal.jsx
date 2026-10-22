@@ -72,7 +72,7 @@ export default function VerifyModal({ myPublicKey, peer, verified, onVerify, onU
   const [scanResult, setScanResult] = useState(null); // null | 'match' | 'mismatch'
 
   useEffect(() => {
-    QRCode.toDataURL(payload, { margin: 1, width: 240, color: { dark: '#2e1065', light: '#ffffff' } }).then(setQr);
+    QRCode.toDataURL(payload, { margin: 1, width: 240, color: { dark: '#0f172a', light: '#ffffff' } }).then(setQr);
   }, [payload]);
 
   function handleScan(matches) {
@@ -82,22 +82,27 @@ export default function VerifyModal({ myPublicKey, peer, verified, onVerify, onU
   }
 
   return (
-    <Modal title={`Verify ${peer.displayName}`} emoji="🛡️" onClose={onClose}>
+    <Modal
+      title={`Verify ${peer.displayName}`}
+      description="Confirm nobody is intercepting your encrypted messages."
+      onClose={onClose}
+    >
       {scanning ? (
         <QrScanner expected={payload} onResult={handleScan} onCancel={() => setScanning(false)} />
       ) : (
         <div className="space-y-5">
-          <p className="text-sm text-zinc-400">
-            Messages are end-to-end encrypted. To be sure nobody is secretly in the middle, compare these numbers with{' '}
-            {peer.displayName} in person or on a call. <strong className="text-zinc-200">They should be identical.</strong>
+          <p className="text-sm text-muted">
+            Compare these numbers with {peer.displayName} in person or on a call. If they&apos;re{' '}
+            <strong className="text-fg">identical</strong> on both screens, your conversation is secure.
           </p>
 
-          {scanResult === 'match' && <Alert tone="success">Codes match! {peer.displayName} is verified.</Alert>}
+          {verified && !scanResult && <Alert tone="success">You verified {peer.displayName}.</Alert>}
+          {scanResult === 'match' && <Alert tone="success">Codes match. {peer.displayName} is verified.</Alert>}
           {scanResult === 'mismatch' && (
-            <Alert>The codes DON&apos;T match. Don&apos;t share anything sensitive, and check again together.</Alert>
+            <Alert>The codes don&apos;t match. Don&apos;t share anything sensitive, and check again together.</Alert>
           )}
 
-          <div className="grid grid-cols-4 gap-2 rounded-3xl bg-raised p-4 text-center font-mono text-lg tracking-wider">
+          <div className="grid grid-cols-4 gap-x-3 gap-y-2 rounded-xl border border-line bg-subtle p-4 text-center font-mono text-base tracking-wider">
             {groups.map((group, index) => (
               <span key={index}>{group}</span>
             ))}
@@ -105,23 +110,23 @@ export default function VerifyModal({ myPublicKey, peer, verified, onVerify, onU
 
           {qr && (
             <div className="flex flex-col items-center gap-2">
-              <img src={qr} alt="Safety number QR code" className="h-44 w-44 rounded-2xl bg-white p-2 shadow-md" />
-              <p className="text-xs text-zinc-500">Or scan each other&apos;s code</p>
+              <img src={qr} alt="Safety number QR code" className="h-40 w-40 rounded-lg border border-line bg-white p-2" />
+              <p className="text-xs text-faint">Or scan each other&apos;s code</p>
             </div>
           )}
 
-          <div className="space-y-2">
-            {canScan && (
-              <Button variant="secondary" onClick={() => setScanning(true)}>
-                📷 Scan their code
-              </Button>
-            )}
+          <div className="flex flex-col gap-2 sm:flex-row-reverse">
             {verified ? (
               <Button variant="secondary" onClick={onUnverify}>
                 Remove verification
               </Button>
             ) : (
-              <Button onClick={onVerify}>✅ The numbers match — mark verified</Button>
+              <Button onClick={onVerify}>Mark as verified</Button>
+            )}
+            {canScan && (
+              <Button variant="secondary" onClick={() => setScanning(true)}>
+                Scan their code
+              </Button>
             )}
           </div>
         </div>

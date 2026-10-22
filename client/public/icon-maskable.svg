@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Full-bleed square: phones cut it into a circle/squircle ("maskable" icon). -->
+  <rect width="64" height="64" fill="#2563eb"/>
+  <g transform="translate(9.6 9.6) scale(0.7)">
+    <path d="M18 20h28a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6H30l-9 7v-7h-3a6 6 0 0 1-6-6V26a6 6 0 0 1 6-6z" fill="#fff"/>
+    <rect x="26" y="31" width="12" height="9" rx="2" fill="#2563eb"/>
+    <path d="M28.5 31v-2.5a3.5 3.5 0 0 1 7 0V31" fill="none" stroke="#2563eb" stroke-width="2.4"/>
+  </g>
+</svg>

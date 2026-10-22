@@ -1,5 +1,6 @@
-// ☀️ / 🌙 switch between the light and dark theme.
+// Switch between light and dark mode. Icon button (sun / moon).
 import { useAppearance } from '../theme/appearance.js';
+import { MoonIcon, SunIcon } from './Icons.jsx';
 
 export default function ThemeToggle({ className = '' }) {
   const [mode, toggle] = useAppearance();
@@ -8,23 +9,11 @@ export default function ThemeToggle({ className = '' }) {
   return (
     <button
       onClick={toggle}
-      role="switch"
-      aria-checked={dark}
       aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={dark ? 'Light mode' : 'Dark mode'}
-      className={`flex h-9 w-16 shrink-0 items-center rounded-full p-1 ring-1 ring-line transition-colors duration-300 ${
-        dark ? 'bg-indigo-950' : 'bg-yellow-100'
-      } ${className}`}
+      className={`rounded-lg p-2 text-muted transition hover:bg-subtle hover:text-fg ${className}`}
     >
-      {/* The sliding knob carries the icon */}
-      <span
-        className={`flex h-7 w-7 items-center justify-center rounded-full text-base shadow-md transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-          dark ? 'translate-x-7 bg-indigo-700' : 'translate-x-0 bg-white'
-        }`}
-        aria-hidden="true"
-      >
-        {dark ? '🌙' : '☀️'}
-      </span>
+      {dark ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
     </button>
   );
 }

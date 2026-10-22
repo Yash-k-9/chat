@@ -25,8 +25,8 @@ export default function JoinPanel({ initialCode = '', onChatOpened }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <p className="text-sm text-zinc-400">Got an invite from someone? Paste it here to start a private chat with them.</p>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <p className="text-sm text-muted">Paste an invite code someone sent you to start a private chat with them.</p>
       {error && <Alert>{error}</Alert>}
       <FormField
         label="Invite code"
@@ -37,7 +37,7 @@ export default function JoinPanel({ initialCode = '', onChatOpened }) {
         spellCheck={false}
       />
       <Button type="submit" loading={loading} disabled={!code.trim()}>
-        Accept invite 🤝
+        Accept invite
       </Button>
     </form>
   );

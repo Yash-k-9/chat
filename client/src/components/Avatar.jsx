@@ -1,20 +1,22 @@
-// Round avatar with the person's initials on a colorful gradient. The color is
-// picked from their id, so the same person always gets the same color.
-const GRADIENTS = [
-  'from-violet-400 to-fuchsia-500',
-  'from-sky-400 to-indigo-500',
-  'from-emerald-400 to-teal-500',
-  'from-amber-300 to-orange-500',
-  'from-rose-400 to-pink-500',
-  'from-cyan-400 to-blue-500',
-  'from-lime-300 to-emerald-500',
-  'from-fuchsia-400 to-purple-600',
+// Round avatar with the person's initials. The color is picked from their id, so the same
+// person always gets the same (muted, professional) color. `online` adds a green dot.
+const COLORS = [
+  'bg-blue-600',
+  'bg-sky-600',
+  'bg-teal-600',
+  'bg-emerald-600',
+  'bg-amber-600',
+  'bg-orange-600',
+  'bg-rose-600',
+  'bg-slate-600',
+  'bg-cyan-700',
+  'bg-indigo-600',
 ];
 
-function pickGradient(seed = '') {
+function pickColor(seed = '') {
   let hash = 0;
   for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return GRADIENTS[hash % GRADIENTS.length];
+  return COLORS[hash % COLORS.length];
 }
 
 function initials(name = '?') {
@@ -22,13 +24,21 @@ function initials(name = '?') {
   return ((parts[0]?.[0] || '?') + (parts.length > 1 ? parts.at(-1)[0] : '')).toUpperCase();
 }
 
-export default function Avatar({ name, seed, size = 'h-12 w-12 text-base', className = '' }) {
+export default function Avatar({ name, seed, size = 'h-10 w-10 text-sm', online = false, className = '' }) {
   return (
-    <div
-      aria-hidden="true"
-      className={`flex shrink-0 select-none items-center justify-center rounded-full bg-gradient-to-br font-display font-semibold text-white shadow-md ring-2 ring-line ${pickGradient(seed || name)} ${size} ${className}`}
-    >
-      {initials(name)}
-    </div>
+    <span className={`relative inline-flex shrink-0 ${className}`}>
+      <span
+        aria-hidden="true"
+        className={`flex select-none items-center justify-center rounded-full font-semibold text-white ${pickColor(seed || name)} ${size}`}
+      >
+        {initials(name)}
+      </span>
+      {online && (
+        <span
+          title="Online"
+          className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-surface bg-success"
+        />
+      )}
+    </span>
   );
 }

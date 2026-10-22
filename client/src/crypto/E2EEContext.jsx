@@ -32,30 +32,49 @@ export function E2EEProvider({ children }) {
     setStatus('ready');
   }, [user.id]);
 
-  const setUp = useCallback(async () => {
-    setStatus('loading');
-    setError('');
-    try {
-      await initSodium();
-      const [local, remote] = await Promise.all([getIdentity(user.id), api('/keys/me')]);
-      setServer(remote);
+  // Only ONE setup may run at a time — in this tab (React dev mode runs effects twice) and
+  // across tabs (navigator.locks). Otherwise two runs could each create and upload a
+  // different key, and this device would end up holding the "wrong" one.
+  const setUpRunning = useRef(null);
 
-      if (local && local.publicKey === remote.publicKey) {
-        await activateIdentity(local);
-      } else if (!remote.publicKey) {
-        // Server has no key yet: use this device's key, or make a new one, and publish it.
-        const keys = local || generateIdentityKeyPair();
-        await api('/keys/me', { method: 'PUT', body: { publicKey: keys.publicKey } });
-        setServer({ publicKey: keys.publicKey, hasBackup: false });
-        await activateIdentity(keys);
-      } else {
-        // The account's real key lives elsewhere (another device) — must restore or start fresh.
-        setStatus('needs-restore');
+  const setUp = useCallback(() => {
+    if (setUpRunning.current) return setUpRunning.current;
+
+    const run = async () => {
+      // A background re-check (e.g. after 'keys:changed') must not blank the open app.
+      setStatus((prev) => (prev === 'ready' ? prev : 'loading'));
+      setError('');
+      try {
+        await initSodium();
+        const [local, remote] = await Promise.all([getIdentity(user.id), api('/keys/me')]);
+        setServer(remote);
+
+        if (local && local.publicKey === remote.publicKey) {
+          await activateIdentity(local);
+        } else if (!remote.publicKey) {
+          // Server has no key yet: use this device's key, or make a new one, and publish it.
+          // Saved locally FIRST, so a parallel tab sees it and doesn't make its own.
+          const keys = local || generateIdentityKeyPair();
+          await saveIdentity(user.id, keys);
+          await api('/keys/me', { method: 'PUT', body: { publicKey: keys.publicKey } });
+          setServer({ publicKey: keys.publicKey, hasBackup: false });
+          await activateIdentity(keys);
+        } else {
+          // The account's real key lives elsewhere (another device) — must restore or start fresh.
+          setIdentity(null);
+          setStatus('needs-restore');
+        }
+      } catch (err) {
+        setError(err.message);
+        setStatus('error');
       }
-    } catch (err) {
-      setError(err.message);
-      setStatus('error');
-    }
+    };
+
+    const locked = navigator.locks ? navigator.locks.request(`e2ee-setup:${user.id}`, run) : run();
+    setUpRunning.current = locked.finally(() => {
+      setUpRunning.current = null;
+    });
+    return setUpRunning.current;
   }, [user.id, activateIdentity]);
 
   useEffect(() => {

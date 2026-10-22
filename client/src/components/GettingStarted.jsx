@@ -1,7 +1,8 @@
-// Friendly "Getting started" checklist for new people. Each step ticks itself off
-// automatically; once all are done (or the user hides it) it disappears.
+// "Get started" checklist for new people. Each step ticks itself off automatically;
+// once all are done (or the user hides it) it disappears.
 import { useState } from 'react';
 import { useE2EE } from '../crypto/E2EEContext.jsx';
+import { ChatBubbleIcon, CheckIcon, KeyIcon, MailIcon, UserPlusIcon } from './Icons.jsx';
 
 const HIDDEN_KEY = 'getting-started-hidden';
 
@@ -17,26 +18,26 @@ export function getSteps(user, chats, hasKeyBackup) {
   return [
     {
       id: 'email',
-      emoji: '📧',
+      Icon: MailIcon,
       title: 'Add a recovery email',
       text: 'So you can reset your password if you forget it.',
       done: Boolean(user.email),
       action: 'onAddEmail',
-      button: 'Add email',
+      button: 'Add',
     },
     {
       id: 'backup',
-      emoji: '🔑',
+      Icon: KeyIcon,
       title: 'Back up your encryption key',
       text: 'So a new phone or browser can still read your messages.',
       done: hasKeyBackup,
-      action: 'onAddEmail', // both live in "My account"
+      action: 'onAddEmail', // both live in Settings
       button: 'Back up',
     },
     {
       id: 'invite',
-      emoji: '💌',
-      title: 'Invite someone you love',
+      Icon: UserPlusIcon,
+      title: 'Invite someone',
       text: 'Send a private link. They join and you get a chat together.',
       done: chats.length > 0,
       action: 'onInvite',
@@ -44,9 +45,9 @@ export function getSteps(user, chats, hasKeyBackup) {
     },
     {
       id: 'message',
-      emoji: '💬',
-      title: 'Say hello',
-      text: 'Open a chat and send your first message.',
+      Icon: ChatBubbleIcon,
+      title: 'Send your first message',
+      text: 'Open a chat and say hello.',
       done: chats.some((chat) => chat.lastMessage),
     },
   ];
@@ -72,58 +73,52 @@ export default function GettingStarted({ user, chats, onAddEmail, onInvite, comp
 
   return (
     <section
-      aria-label="Getting started"
-      className={`animate-pop-in rounded-[1.75rem] bg-gradient-to-br from-violet-500/15 via-fuchsia-500/10 to-amber-400/10 ring-1 ring-line ${
-        compact ? 'p-4' : 'p-6'
-      } ${className}`}
+      aria-label="Get started"
+      className={`animate-fade-in rounded-xl border border-line bg-surface shadow-sm ${compact ? 'p-3' : 'p-5'} ${className}`}
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <p className={`font-display font-semibold ${compact ? 'text-base' : 'text-xl'}`}>Let&apos;s get you set up ✨</p>
-          <p className="text-xs font-bold text-zinc-400">
-            {doneCount} of {steps.length} done
+          <p className={`font-semibold ${compact ? 'text-sm' : 'text-base'}`}>Get started</p>
+          <p className="text-xs text-muted">
+            {doneCount} of {steps.length} complete
           </p>
         </div>
-        <button onClick={hide} className="rounded-full px-2 py-1 text-xs font-bold text-zinc-400 hover:bg-tint hover:text-zinc-100">
-          Hide
+        <button onClick={hide} className="rounded-md px-2 py-1 text-xs font-medium text-muted hover:bg-subtle hover:text-fg">
+          Dismiss
         </button>
       </div>
 
-      {/* Progress bar */}
-      <div className="mb-4 h-2 overflow-hidden rounded-full bg-tint-strong">
+      <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-subtle">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 transition-all duration-700"
+          className="h-full rounded-full bg-accent transition-all duration-500"
           style={{ width: `${(doneCount / steps.length) * 100}%` }}
         />
       </div>
 
-      <ol className="space-y-2">
-        {steps.map((step) => (
-          <li
-            key={step.id}
-            className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${step.done ? 'opacity-60' : 'bg-panel/70'}`}
-          >
+      <ol className="divide-y divide-line">
+        {steps.map(({ id, Icon, title, text, done, action, button }) => (
+          <li key={id} className="flex items-center gap-3 py-2.5">
             <span
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg ${
-                step.done ? 'bg-emerald-500 text-white' : 'bg-tint-strong'
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                done ? 'bg-success text-white' : 'bg-subtle text-muted'
               }`}
               aria-hidden="true"
             >
-              {step.done ? '✓' : step.emoji}
+              {done ? <CheckIcon className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
             </span>
             <div className="min-w-0 flex-1">
-              <p className={`text-sm font-bold ${step.done ? 'line-through' : ''}`}>{step.title}</p>
-              {!compact && !step.done && <p className="text-xs text-zinc-400">{step.text}</p>}
+              <p className={`text-sm font-medium ${done ? 'text-faint line-through' : ''}`}>{title}</p>
+              {!compact && !done && <p className="text-xs text-muted">{text}</p>}
             </div>
-            {!step.done && step.action && actions[step.action] && (
+            {!done && action && actions[action] && (
               <button
-                onClick={actions[step.action]}
-                className="shrink-0 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-fuchsia-500/20 transition hover:-translate-y-0.5"
+                onClick={actions[action]}
+                className="h-8 shrink-0 rounded-md border border-line px-3 text-xs font-semibold text-fg hover:bg-subtle"
               >
-                {step.button}
+                {button}
               </button>
             )}
-            <span className="sr-only">{step.done ? '(done)' : '(to do)'}</span>
+            <span className="sr-only">{done ? '(done)' : '(to do)'}</span>
           </li>
         ))}
       </ol>

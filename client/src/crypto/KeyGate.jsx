@@ -10,6 +10,7 @@ import FormField from '../components/FormField.jsx';
 import Button from '../components/Button.jsx';
 import Alert from '../components/Alert.jsx';
 import Spinner from '../components/Spinner.jsx';
+import { AlertIcon, LockIcon } from '../components/Icons.jsx';
 
 function StartFreshConfirm({ onCancel, onConfirm, busy }) {
   return (
@@ -65,15 +66,14 @@ function RestoreScreen() {
 
   return (
     <AuthLayout
-      emoji="🔐"
       title="Unlock your messages"
       subtitle={
         hasBackup
-          ? 'This device doesn’t have your encryption key yet. Enter your backup passphrase to bring it over.'
-          : 'Your encryption key lives on another device, and there’s no backup to restore from.'
+          ? 'This device doesn’t have your encryption key yet. Enter your backup passphrase to restore it.'
+          : 'Your encryption key is on another device, and there’s no backup to restore from.'
       }
       footer={
-        <button onClick={logout} className="font-bold text-fuchsia-300 hover:underline">
+        <button onClick={logout} className="font-medium text-accent hover:underline">
           Log out instead
         </button>
       }
@@ -81,29 +81,26 @@ function RestoreScreen() {
       {confirmingFresh ? (
         <StartFreshConfirm onCancel={() => setConfirmingFresh(false)} onConfirm={handleStartFresh} busy={busy} />
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {error && <Alert>{error}</Alert>}
           {hasBackup && (
-            <form onSubmit={handleRestore} className="space-y-5">
+            <form onSubmit={handleRestore} className="space-y-4">
               <FormField
                 label="Backup passphrase"
                 type="password"
                 value={passphrase}
                 onChange={(e) => setPassphrase(e.target.value)}
-                hint="The one you chose under My account → Key backup (not your login password)."
+                hint="The passphrase from Settings → Encryption key backup (not your login password)."
                 autoComplete="off"
               />
               <Button type="submit" loading={busy} disabled={!passphrase}>
-                {busy ? 'Unlocking…' : 'Unlock 🔓'}
+                {busy ? 'Unlocking…' : 'Unlock'}
               </Button>
             </form>
           )}
-          <button
-            onClick={() => setConfirmingFresh(true)}
-            className={`w-full text-center text-sm font-bold ${hasBackup ? 'text-zinc-400 hover:text-zinc-100' : 'rounded-full bg-raised py-3 text-zinc-100'}`}
-          >
+          <Button variant={hasBackup ? 'ghost' : 'secondary'} onClick={() => setConfirmingFresh(true)}>
             {hasBackup ? 'Lost your passphrase? Start fresh' : 'Start fresh on this device'}
-          </button>
+          </Button>
         </div>
       )}
     </AuthLayout>
@@ -120,15 +117,19 @@ export default function KeyGate({ children }) {
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
       {status === 'loading' ? (
         <>
-          <span className="animate-float text-6xl" aria-hidden="true">🔐</span>
-          <Spinner className="h-7 w-7" />
-          <p className="font-display text-lg font-semibold">Getting your encryption keys ready…</p>
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft">
+            <LockIcon className="h-6 w-6 text-accent" />
+          </span>
+          <Spinner className="h-6 w-6" />
+          <p className="text-sm font-medium text-muted">Preparing your encryption keys…</p>
         </>
       ) : (
         <>
-          <span className="text-6xl" aria-hidden="true">😬</span>
-          <p className="font-display text-lg font-semibold">Couldn&apos;t load your encryption keys</p>
-          <p className="max-w-sm text-sm text-zinc-400">{error}</p>
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-danger-soft">
+            <AlertIcon className="h-6 w-6 text-danger" />
+          </span>
+          <p className="text-base font-semibold">Couldn&apos;t load your encryption keys</p>
+          <p className="max-w-sm text-sm text-muted">{error}</p>
           <div className="w-40">
             <Button onClick={retry}>Try again</Button>
           </div>

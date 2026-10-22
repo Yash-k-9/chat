@@ -8,6 +8,9 @@ node_modules/
 npm-debug.log*
 coverage/
 
+# ---- Uploaded (encrypted) media in local development ----
+server/uploads/
+
 # ---- Client build output ----
 client/dist/
 *.local

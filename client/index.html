@@ -4,23 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#fdf6ee" />
-    <!-- Apply the saved light/dark choice before anything is drawn (no flash). Light is the default. -->
-    <script>
-      try {
-        if (localStorage.getItem('appearance') === 'dark') {
-          document.documentElement.classList.replace('light', 'dark');
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#120f26');
-        }
-      } catch (e) {}
-    </script>
+    <meta name="theme-color" content="#f8fafc" />
+    <meta name="description" content="Private, invite-only, end-to-end encrypted chat." />
     <title>Private Chat</title>
-    <!-- Fonts: Fredoka (round, playful headings) + Nunito (friendly, readable body) -->
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <!-- Apply the saved light/dark choice before anything is drawn (no flash). Light is the default. -->
+    <script src="/theme-init.js"></script>
+    <!-- Inter: the clean, highly readable UI font used by many professional apps -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
     />
   </head>
   <body>

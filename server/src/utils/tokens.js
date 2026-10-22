@@ -52,13 +52,14 @@ export async function issueRefreshToken(db, userId) {
 }
 
 // Cookie settings for the refresh token.
-// In production the client (Vercel) and server (Render) are on different sites,
-// which requires SameSite=None + Secure. Locally Vite's proxy makes them same-site.
+// The web app reaches /api on its OWN site (Vite proxy locally, Vercel rewrite in production),
+// so the cookie is first-party and SameSite=Lax works in every browser, Safari included.
+// Secure (HTTPS-only) in production; SameSite=None additionally requires Secure.
 export function refreshCookieOptions() {
   return {
     httpOnly: true,
-    secure: env.isProduction,
-    sameSite: env.isProduction ? 'none' : 'lax',
+    secure: env.isProduction || env.cookieSameSite === 'none',
+    sameSite: env.cookieSameSite,
     path: '/api/auth', // the browser sends the cookie ONLY to auth endpoints
     maxAge: REFRESH_TOKEN_TTL_MS,
   };

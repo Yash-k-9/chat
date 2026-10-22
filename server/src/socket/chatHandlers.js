@@ -4,14 +4,26 @@
 //   typing             { chatId, isTyping }        → push 'typing' to the others in the chat
 //   message:delivered  { chatId, messageId }       → push 'receipt:update' (✓✓ grey)
 //   message:read       { chatId, messageId }       → push 'receipt:update' (✓✓ colored)
+//   message:delete     { chatId, messageId }       → "delete for everyone" → push 'message:deleted'
+//   reaction:set       { chatId, messageId, body } → body = encrypted emoji, or null to remove
+//   presence:list      {}                          → which of my contacts are online right now
 //   auth:renew         { token }                   → swap in a fresh access token
 //
 // Every event can be answered with an "ack" (a callback): { ok: true, ... } or { ok: false, error }.
 import { z } from 'zod';
 import pool from '../db/pool.js';
 import { verifyAccessToken } from '../utils/tokens.js';
-import { ENCRYPTED_BODY, MAX_MESSAGE_LENGTH, advanceReceipt, saveMessage } from '../services/messages.js';
+import {
+  ENCRYPTED_BODY,
+  MAX_MESSAGE_LENGTH,
+  advanceReceipt,
+  deleteMessage,
+  saveMessage,
+  setReaction,
+} from '../services/messages.js';
 import { isChatDisconnected } from '../services/chats.js';
+import { notifyOfflineMembers } from '../services/push.js';
+import { onlineContacts } from './presence.js';
 import { chatRoom } from './rooms.js';
 
 // Per-socket flood protection: at most 60 events every 10 seconds.
@@ -28,6 +40,13 @@ const schemas = {
   }),
   typing: z.object({ chatId: z.uuid(), isTyping: z.boolean() }),
   receipt: z.object({ chatId: z.uuid(), messageId: z.number().int().positive() }),
+  'message:delete': z.object({ chatId: z.uuid(), messageId: z.number().int().positive() }),
+  'reaction:set': z.object({
+    chatId: z.uuid(),
+    messageId: z.number().int().positive(),
+    body: z.string().max(400).regex(ENCRYPTED_BODY).nullable(), // encrypted emoji, or null = remove
+  }),
+  empty: z.object({}).optional(),
   'auth:renew': z.object({ token: z.string().min(1) }),
 };
 
@@ -53,6 +72,8 @@ export function registerChatHandlers(io, socket) {
   // payload valid. Then runs the handler and sends the result through the ack.
   function on(event, schema, handler, { checkExpiry = true } = {}) {
     socket.on(event, async (payload, ack) => {
+      // An event sent without data arrives as (ack) — the callback comes first.
+      if (typeof payload === 'function') [payload, ack] = [undefined, payload];
       const reply = typeof ack === 'function' ? ack : () => {};
       try {
         await socket.data.ready;
@@ -95,10 +116,33 @@ export function registerChatHandlers(io, socket) {
 
     // Push to everyone in the chat, including the sender's other tabs.
     // A retried message (created = false) was already pushed the first time.
-    if (created) io.to(chatRoom(chatId)).emit('message:new', message);
+    if (created) {
+      io.to(chatRoom(chatId)).emit('message:new', message);
+      // People with no open tab get a content-free push notification ("New message").
+      notifyOfflineMembers(chatId, userId).catch((err) => console.error('Push failed', err));
+    }
 
     return { message };
   });
+
+  on('message:delete', schemas['message:delete'], async ({ chatId, messageId }) => {
+    assertMember(chatId);
+    if (!(await deleteMessage(pool, { chatId, messageId, userId }))) {
+      throw new SocketError('You can only delete your own messages');
+    }
+    io.to(chatRoom(chatId)).emit('message:deleted', { chatId, messageId });
+    return {};
+  });
+
+  on('reaction:set', schemas['reaction:set'], async ({ chatId, messageId, body }) => {
+    assertMember(chatId);
+    await assertConnected(chatId);
+    if (!(await setReaction(pool, { chatId, messageId, userId, body }))) throw new SocketError('Message not found');
+    io.to(chatRoom(chatId)).emit('reaction:update', { chatId, messageId, userId, body });
+    return {};
+  });
+
+  on('presence:list', schemas.empty, async () => ({ userIds: await onlineContacts(userId) }));
 
   on('typing', schemas.typing, async ({ chatId, isTyping }) => {
     assertMember(chatId);

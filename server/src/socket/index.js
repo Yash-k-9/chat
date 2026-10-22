@@ -7,6 +7,7 @@ import pool from '../db/pool.js';
 import { verifyAccessToken } from '../utils/tokens.js';
 import { getUserChatIds, markAllDelivered } from '../services/messages.js';
 import { registerChatHandlers } from './chatHandlers.js';
+import { userConnected, userDisconnected } from './presence.js';
 import { chatRoom, userRoom } from './rooms.js';
 
 // A socket whose access token expired more than this long ago is disconnected.
@@ -45,6 +46,10 @@ async function setUpConnection(socket) {
   for (const receipt of receipts) {
     io.to(chatRoom(receipt.chatId)).emit('receipt:update', receipt);
   }
+
+  // Presence: tell my contacts I'm online (only on my FIRST open tab).
+  await userConnected(io, userId);
+  socket.data.counted = true;
 }
 
 function handleConnection(socket) {
@@ -54,6 +59,11 @@ function handleConnection(socket) {
   socket.data.ready.catch((err) => {
     console.error('Socket setup failed', err);
     socket.disconnect(true);
+  });
+
+  socket.on('disconnect', () => {
+    // Only undo the presence count if setup got far enough to add it.
+    if (socket.data.counted) userDisconnected(io, socket.data.user.id).catch(() => {});
   });
 
   registerChatHandlers(io, socket);
@@ -92,6 +102,14 @@ export function notifyNewChat(chatId, userIds) {
     io.in(userRoom(userId)).socketsJoin(chatRoom(chatId));
     io.to(userRoom(userId)).emit('chat:new', { chatId });
   }
+}
+
+// Called when a user deletes a chat from their list: their open tabs stop receiving its
+// live events, and they're told to refresh their list.
+export function removeUserFromChatRoom(userId, chatId) {
+  if (!io) return;
+  io.in(userRoom(userId)).socketsLeave(chatRoom(chatId));
+  io.to(userRoom(userId)).emit('chat:updated', { chatId });
 }
 
 // Called when a chat changes (e.g. disconnected): its members reload the chat list.

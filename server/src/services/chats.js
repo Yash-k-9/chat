@@ -2,6 +2,8 @@
 
 // Returns the id of the 1-to-1 chat between two users, creating it if needed.
 // If they had DISCONNECTED, using a new invite reconnects the same chat (history kept).
+// If one of them had REMOVED the chat, it reappears in their list — but their old history
+// stays hidden for them (cleared_before_id), so for them it starts empty.
 // Must run inside a transaction (the lock is released when the transaction ends).
 export async function findOrCreateDirectChat(db, userA, userB) {
   // Lock on this PAIR of users, so two requests at the same moment can't create two chats.
@@ -23,6 +25,7 @@ export async function findOrCreateDirectChat(db, userA, userB) {
       'UPDATE chats SET disconnected_at = NULL, disconnected_by = NULL WHERE id = $1 AND disconnected_at IS NOT NULL',
       [chatId],
     );
+    await db.query('UPDATE chat_members SET removed_at = NULL WHERE chat_id = $1 AND removed_at IS NOT NULL', [chatId]);
     return chatId;
   }
 
@@ -39,6 +42,22 @@ export async function findOrCreateDirectChat(db, userA, userB) {
 export async function isChatDisconnected(db, chatId) {
   const { rows } = await db.query('SELECT disconnected_at FROM chats WHERE id = $1', [chatId]);
   return Boolean(rows[0]?.disconnected_at);
+}
+
+// "Delete chat (for me)": hide the chat and its history for this user only, and disconnect
+// it (nobody can keep messaging someone who removed them). Must run inside a transaction.
+// Returns false if the user isn't an active member.
+export async function removeChatForMember(db, chatId, userId) {
+  const { rowCount } = await db.query(
+    `UPDATE chat_members
+        SET removed_at = now(),
+            cleared_before_id = COALESCE((SELECT max(id) FROM messages WHERE chat_id = $1), 0)
+      WHERE chat_id = $1 AND user_id = $2 AND removed_at IS NULL`,
+    [chatId, userId],
+  );
+  if (!rowCount) return false;
+  await disconnectChat(db, chatId, userId);
+  return true;
 }
 
 // "Unfollow": mark a direct chat as disconnected. Returns false if it already was.

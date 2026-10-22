@@ -1,4 +1,4 @@
-// "Key backup" in My account: lock your encryption key with a passphrase and store the
+// Settings → Encryption key backup: lock your encryption key with a passphrase and store the
 // locked copy on the server, so a new phone/browser can unlock your messages.
 import { useState } from 'react';
 import { useE2EE } from '../crypto/E2EEContext.jsx';
@@ -6,6 +6,8 @@ import { MIN_PASSPHRASE_LENGTH } from '../crypto/backup.js';
 import FormField from './FormField.jsx';
 import Button from './Button.jsx';
 import Alert from './Alert.jsx';
+import SettingsSection from './SettingsSection.jsx';
+import { KeyIcon } from './Icons.jsx';
 
 export default function KeyBackupSection() {
   const { hasBackup, saveBackup } = useE2EE();
@@ -20,7 +22,7 @@ export default function KeyBackupSection() {
     event.preventDefault();
     setError('');
     if (passphrase.length < MIN_PASSPHRASE_LENGTH) {
-      return setError(`Use at least ${MIN_PASSPHRASE_LENGTH} characters — a short sentence is great.`);
+      return setError(`Use at least ${MIN_PASSPHRASE_LENGTH} characters. A short sentence works well.`);
     }
     if (passphrase !== confirm) return setError("The two passphrases don't match.");
 
@@ -40,57 +42,67 @@ export default function KeyBackupSection() {
   }
 
   return (
-    <section className="mt-6 rounded-3xl bg-raised/60 p-5">
-      <div className="flex items-start gap-3">
-        <span className="text-2xl" aria-hidden="true">🔑</span>
-        <div className="min-w-0 flex-1">
-          <p className="font-display font-semibold">Encryption key backup</p>
-          <p className="text-sm text-zinc-400">
-            {hasBackup
-              ? 'Backed up ✅ You can unlock your messages on a new device with your backup passphrase.'
-              : 'Not backed up yet. Without a backup, a new phone or browser can’t read your old messages.'}
-          </p>
+    <SettingsSection
+      icon={KeyIcon}
+      title="Encryption key backup"
+      description="Lets you read your messages on a new phone or browser. Protected by a passphrase only you know."
+    >
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-sm">
+          <span className={`h-2 w-2 rounded-full ${hasBackup ? 'bg-success' : 'bg-warning'}`} />
+          <span className="text-muted">{hasBackup ? 'Backed up' : 'Not backed up yet'}</span>
         </div>
-      </div>
 
-      {saved && <Alert tone="success" className="mt-4">Backup saved. Keep your passphrase somewhere safe!</Alert>}
+        {saved && <Alert tone="success">Backup saved. Keep your passphrase somewhere safe.</Alert>}
 
-      {open ? (
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <Alert tone="info">
-            This passphrase is <strong>different from your login password</strong>. We never see it, so we can&apos;t
-            reset it — write it down somewhere safe.
-          </Alert>
-          {error && <Alert>{error}</Alert>}
-          <FormField
-            label="Backup passphrase"
-            type="password"
-            value={passphrase}
-            onChange={(e) => setPassphrase(e.target.value)}
-            hint={`At least ${MIN_PASSPHRASE_LENGTH} characters, e.g. “purple elephants dance at noon”`}
-            autoComplete="new-password"
-          />
-          <FormField
-            label="Repeat passphrase"
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            autoComplete="new-password"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={busy} disabled={!passphrase || !confirm}>
-              {busy ? 'Locking…' : 'Save backup'}
+        {open ? (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <Alert tone="info">
+              This passphrase is <strong>not</strong> your login password. We never see it and can&apos;t reset it —
+              store it somewhere safe.
+            </Alert>
+            {error && <Alert>{error}</Alert>}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField
+                label="Backup passphrase"
+                type="password"
+                value={passphrase}
+                onChange={(e) => setPassphrase(e.target.value)}
+                hint={`At least ${MIN_PASSPHRASE_LENGTH} characters`}
+                autoComplete="new-password"
+              />
+              <FormField
+                label="Repeat passphrase"
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" fullWidth={false} onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" fullWidth={false} loading={busy} disabled={!passphrase || !confirm}>
+                {busy ? 'Encrypting…' : 'Save backup'}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex justify-end">
+            <Button
+              variant={hasBackup ? 'secondary' : 'primary'}
+              fullWidth={false}
+              onClick={() => {
+                setOpen(true);
+                setSaved(false);
+              }}
+            >
+              {hasBackup ? 'Change passphrase' : 'Back up my key'}
             </Button>
           </div>
-        </form>
-      ) : (
-        <Button variant={hasBackup ? 'secondary' : 'primary'} className="mt-4" onClick={() => { setOpen(true); setSaved(false); }}>
-          {hasBackup ? 'Change backup passphrase' : 'Back up my key 🔐'}
-        </Button>
-      )}
-    </section>
+        )}
+      </div>
+    </SettingsSection>
   );
 }

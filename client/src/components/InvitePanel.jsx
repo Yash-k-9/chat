@@ -7,9 +7,9 @@ import Alert from './Alert.jsx';
 import { CheckIcon, CopyIcon } from './Icons.jsx';
 
 const DAY_OPTIONS = [
-  { days: 1, label: '1 day', emoji: '⚡' },
-  { days: 3, label: '3 days', emoji: '🌤️' },
-  { days: 7, label: '1 week', emoji: '📅' },
+  { days: 1, label: '24 hours' },
+  { days: 3, label: '3 days' },
+  { days: 7, label: '7 days' },
 ];
 
 export default function InvitePanel() {
@@ -42,70 +42,76 @@ export default function InvitePanel() {
 
   if (invite) {
     return (
-      <div className="animate-pop-in">
-        <div className="mb-5 text-center">
-          <p className="text-5xl" aria-hidden="true">🎟️</p>
-          <p className="mt-2 font-display text-lg font-semibold">Your invite is ready!</p>
-          <p className="text-sm text-zinc-400">Send it privately to one person.</p>
+      <div className="animate-fade-in space-y-4">
+        <Alert tone="success">Invite created. Send it privately to one person.</Alert>
+
+        <div>
+          <p className="mb-1.5 text-sm font-medium">Invite link</p>
+          <div className="flex gap-2">
+            <input
+              readOnly
+              value={inviteLink}
+              aria-label="Invite link"
+              onFocus={(e) => e.target.select()}
+              className="h-10 min-w-0 flex-1 rounded-lg border border-line bg-subtle px-3 text-sm text-muted outline-none"
+            />
+            <button
+              onClick={copyLink}
+              className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition ${
+                copied ? 'bg-success text-white' : 'bg-accent text-white hover:bg-accent-hover'
+              }`}
+            >
+              {copied ? <CheckIcon className="h-4 w-4" /> : <CopyIcon className="h-4 w-4" />}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
         </div>
 
-        <button
-          onClick={copyLink}
-          className={`mb-4 flex w-full items-center gap-3 rounded-2xl p-3 text-left ring-2 transition ${
-            copied ? 'bg-emerald-500/10 ring-emerald-400/50' : 'bg-raised ring-transparent hover:ring-fuchsia-400/40'
-          }`}
-        >
-          <span className="min-w-0 flex-1 truncate text-sm text-zinc-300">{inviteLink}</span>
-          <span
-            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
-              copied ? 'bg-emerald-500 text-white' : 'bg-fuchsia-500/20 text-fuchsia-200'
-            }`}
-          >
-            {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
-            {copied ? 'Copied!' : 'Copy link'}
-          </span>
-        </button>
+        <div>
+          <p className="mb-1.5 text-sm font-medium">Or share the code</p>
+          <p className="select-all rounded-lg border border-dashed border-line bg-subtle px-3 py-2.5 text-center font-mono text-base tracking-widest">
+            {invite.code}
+          </p>
+        </div>
 
-        <p className="mb-1.5 ml-1 text-xs font-bold uppercase tracking-wider text-zinc-500">Or just the code</p>
-        <p className="mb-4 select-all rounded-2xl border-2 border-dashed border-line bg-ink/50 px-4 py-3 text-center font-mono text-lg tracking-widest">
-          {invite.code}
-        </p>
-        <p className="mb-4 text-center text-xs text-zinc-500">
-          Works once · expires {new Date(invite.expiresAt).toLocaleString()} · won&apos;t be shown again
+        <p className="text-xs text-faint">
+          Single use · expires {new Date(invite.expiresAt).toLocaleString()} · it won&apos;t be shown again
         </p>
         <Button variant="secondary" onClick={() => setInvite(null)}>
-          Make another invite
+          Create another invite
         </Button>
       </div>
     );
   }
 
   return (
-    <div>
-      {error && <Alert className="mb-4">{error}</Alert>}
-      <p className="mb-5 text-sm text-zinc-400">
-        Create a one-time link. When someone opens it, you two get a private chat. If they&apos;re new, it also lets them
-        join the circle.
+    <div className="space-y-5">
+      {error && <Alert>{error}</Alert>}
+      <p className="text-sm text-muted">
+        Create a single-use link. Whoever opens it gets a private chat with you — and an account, if they&apos;re new.
       </p>
-      <p className="mb-2 ml-1 text-sm font-bold text-zinc-300">Link expires in</p>
-      <div className="mb-6 grid grid-cols-3 gap-2">
-        {DAY_OPTIONS.map((option) => (
-          <button
-            key={option.days}
-            onClick={() => setDays(option.days)}
-            className={`rounded-2xl px-3 py-3 text-sm font-bold transition duration-200 ${
-              days === option.days
-                ? 'scale-[1.03] bg-fuchsia-500/20 text-white ring-2 ring-fuchsia-400'
-                : 'bg-raised text-zinc-400 hover:text-zinc-100'
-            }`}
-          >
-            <span className="block text-xl" aria-hidden="true">{option.emoji}</span>
-            {option.label}
-          </button>
-        ))}
+      <div>
+        <p className="mb-2 text-sm font-medium">Link expires after</p>
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Link expiry">
+          {DAY_OPTIONS.map((option) => (
+            <button
+              key={option.days}
+              role="radio"
+              aria-checked={days === option.days}
+              onClick={() => setDays(option.days)}
+              className={`h-10 rounded-lg border text-sm font-medium transition ${
+                days === option.days
+                  ? 'border-accent bg-accent-soft text-accent-text'
+                  : 'border-line text-muted hover:bg-subtle'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
       <Button onClick={createInvite} loading={loading}>
-        Create invite link 💌
+        Create invite link
       </Button>
     </div>
   );

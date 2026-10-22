@@ -12,6 +12,8 @@ import userRoutes from './routes/userRoutes.js';
 import inviteRoutes from './routes/inviteRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import keyRoutes from './routes/keyRoutes.js';
+import mediaRoutes from './routes/mediaRoutes.js';
+import pushRoutes from './routes/pushRoutes.js';
 
 const app = express();
 
@@ -58,6 +60,8 @@ api.use('/users', userRoutes);
 api.use('/invites', inviteRoutes);
 api.use('/chats', chatRoutes);
 api.use('/keys', keyRoutes);
+api.use('/media', mediaRoutes);
+api.use('/push', pushRoutes);
 
 app.use('/api', api);
 
@@ -70,7 +74,8 @@ app.use((req, res) => {
 // status and a safe message; anything else is logged and hidden behind a generic 500.
 app.use((err, req, res, next) => {
   const status = err.status || 500;
-  if (status >= 500) console.error(err);
+  // Log real crashes; deliberate errors (HttpError, e.g. a 503 "not configured") are expected.
+  if (status >= 500 && !err.expose) console.error(err);
   const message = status < 500 && err.expose ? err.message : 'Internal server error';
   res.status(status).json({ error: message });
 });
