@@ -161,7 +161,7 @@ export function uploadMedia(chatId, bytes, onProgress = () => {}) {
   const attempt = () =>
     new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_URL}/api/media?chatId=${encodeURIComponent(chatId)}`);
+      xhr.open('POST', `${REALTIME_URL}/api/media?chatId=${encodeURIComponent(chatId)}`);
       xhr.withCredentials = true;
       xhr.setRequestHeader('Content-Type', 'application/octet-stream');
       if (accessToken) xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
@@ -188,7 +188,7 @@ export function downloadMedia(id) {
     const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
     let res;
     try {
-      res = await fetch(`${API_URL}/api/media/${id}`, { headers, credentials: 'include' });
+      res = await fetch(`${REALTIME_URL}/api/media/${id}`, { headers, credentials: 'include' });
     } catch {
       throw new ApiError(0, "Can't reach the server. Is it running?");
     }
