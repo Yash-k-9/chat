@@ -19,7 +19,12 @@ const app = express();
 
 // Behind a proxy (Render), trust its X-Forwarded-For header so rate limits see real IPs.
 app.set('trust proxy', env.trustProxy);
-
+app.use((req, res, next) => {
+  console.log(req.method, req.path, 'ip=', req.ip,
+    'xff=', req.headers['x-forwarded-for'],
+    'ua=', req.headers['user-agent']);
+  next();
+});
 // Security headers (hides "X-Powered-By: Express", adds safe defaults).
 app.use(helmet());
 
