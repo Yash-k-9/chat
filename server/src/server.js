@@ -11,6 +11,10 @@ import { storageName } from './services/mediaStorage.js';
 import { pushEnabled } from './services/push.js';
 
 const server = http.createServer(app);
+// Render's load balancer reuses idle connections longer than Node's 5s default. If Node closes
+// one first, the next request on it fails with a 502 that never reaches Express (or the logs).
+server.keepAliveTimeout = 120 * 1000;
+server.headersTimeout = 121 * 1000;
 initSocket(server);
 
 // Every minute: permanently delete disappeared messages and expired media files.

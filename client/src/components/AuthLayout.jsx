@@ -1,5 +1,7 @@
 // Shared frame for login / signup / password / key-unlock pages.
 // Desktop: dark brand panel on the left, form on the right. Phone: logo + form.
+import { useEffect } from 'react';
+import { wakeServer } from '../api/client.js';
 import { ChatBubbleIcon, LockIcon, UsersIcon } from './Icons.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 
@@ -60,6 +62,11 @@ function BrandPanel() {
 }
 
 export default function AuthLayout({ title, subtitle, children, footer }) {
+  // Start waking a sleeping server (Render free tier) while the user fills in the form.
+  useEffect(() => {
+    wakeServer();
+  }, []);
+
   return (
     <main className="grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,5fr)_minmax(0,4fr)]">
       <BrandPanel />

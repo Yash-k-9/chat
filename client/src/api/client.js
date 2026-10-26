@@ -60,7 +60,59 @@ export function onSessionExpired(handler) {
   sessionExpiredHandler = handler;
 }
 
-async function request(path, { method = 'GET', body } = {}) {
+// 502/503/504 come from the proxies in front of the server (Vercel's rewrite, Render's load
+// balancer), usually while a sleeping Render instance wakes up, so the request never ran.
+const GATEWAY_ERRORS = [502, 503, 504];
+const MAX_RETRIES = 3;
+const WAKE_TIMEOUT_MS = 90 * 1000; // a free Render instance takes 30–60 s to wake up
+const WAKE_POLL_MS = 3000;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+let wakePromise = null;
+
+// Polls /api/health until the server answers (or we give up). Calls made while one is in
+// flight share it. Login pages call this on load, so a sleeping Render instance starts
+// waking up while the user is still typing. Resolves to true once the server is up.
+export function wakeServer() {
+  if (!wakePromise) {
+    wakePromise = (async () => {
+      const deadline = Date.now() + WAKE_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        try {
+          const res = await fetch(`${API_URL}/api/health`, { cache: 'no-store' });
+          if (res.ok) return true;
+        } catch {
+          // network error: keep trying
+        }
+        await sleep(WAKE_POLL_MS);
+      }
+      return false;
+    })().finally(() => {
+      // Don't cache the result: the server can fall asleep again in a long-open tab.
+      wakePromise = null;
+    });
+  }
+  return wakePromise;
+}
+
+async function request(path, options = {}) {
+  // Only retry requests that are safe to repeat. Refresh is included: a gateway error on it
+  // would otherwise log the user out. Login too: a gateway error means it never reached the server.
+  const method = options.method || 'GET';
+  const retryable = method === 'GET' || path === '/auth/refresh' || path === '/auth/login';
+  for (let i = 0; ; i++) {
+    try {
+      return await requestOnce(path, options);
+    } catch (err) {
+      if (!retryable || !GATEWAY_ERRORS.includes(err.status) || i >= MAX_RETRIES) throw err;
+      // Wait until the server is actually awake instead of retrying blindly.
+      if (!(await wakeServer())) throw err;
+      await sleep(1000);
+    }
+  }
+}
+
+async function requestOnce(path, { method = 'GET', body } = {}) {
   const headers = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
